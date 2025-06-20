@@ -74,35 +74,6 @@ impl Term {
         }
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect) {
-        // areaのサイズに合わせてパーサとPTYをリサイズ
-        // 高さを常に2減らす（必要に応じて3に調整可）
-        let rows = area.height.saturating_sub(2).max(1);
-        let cols = area.width.max(1);
-
-        {
-            let mut parser = self.parser.lock().unwrap();
-            parser.set_size(rows, cols);
-        }
-        // PTYのリサイズ
-        let _ = self._pty.resize(PtySize {
-            rows: rows,
-            cols: cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        });
-
-        let parser = self.parser.lock().unwrap();
-        let pseudo_term = PseudoTerminal::new(parser.screen())
-            .block(Block::default().title("Terminal").borders(Borders::ALL))
-            .style(
-                Style::default()
-                    .fg(Color::White)
-                    .bg(Color::Black)
-                    .add_modifier(Modifier::BOLD),
-            );
-        f.render_widget(pseudo_term, area);
-    }
 
     pub fn send_input(&self, input: &[u8]) {
         if let Ok(mut writer) = self.writer.lock() {

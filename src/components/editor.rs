@@ -80,34 +80,6 @@ impl Editor {
         }
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect) {
-        // areaのサイズに合わせてパーサとPTYをリサイズ
-        let rows = area.height.saturating_sub(2).max(1);
-        let cols = area.width.saturating_sub(2).max(1);
-
-        {
-            let mut parser = self.parser.lock().unwrap();
-            parser.set_size(rows, cols);
-        }
-        // PTYのリサイズ
-        let _ = self._pty.resize(portable_pty::PtySize {
-            rows: rows,
-            cols: cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        });
-
-        let parser = self.parser.lock().unwrap();
-        let pseudo_term = PseudoTerminal::new(parser.screen())
-            .block(Block::default().title("Editor").borders(Borders::ALL))
-            .style(
-                Style::default()
-                    .fg(Color::White)
-                    .bg(Color::Black)
-                    .add_modifier(Modifier::BOLD),
-            );
-        f.render_widget(pseudo_term, area);
-    }
     pub fn render_with_block(
         &mut self,
         f: &mut ratatui::Frame,
