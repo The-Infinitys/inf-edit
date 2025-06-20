@@ -18,7 +18,7 @@ mod components {
     pub mod term;
 }
 use components::{editor::Editor, file_view::FileView, term::Term};
-
+use inf_edit::components::status::StatusBar;
 enum ActiveTarget {
     Editor,
     Term,
@@ -52,19 +52,30 @@ fn main() -> Result<(), io::Error> {
     let mut term = Term::new();
     let mut editor = Editor::new();
     let mut f_view = FileView::new(env::current_dir()?);
-
+    let status = StatusBar::new("Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル ...");
     loop {
         terminal.draw(|f| {
-            let size = f.area();
+            // let size = f.area();
+
+            // レイアウトの定義
+            let layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(1),           // メイン画面
+                    Constraint::Length(1),        // ステータスバー
+                ])
+                .split(f.area());
+            let main_area = layout[0];
+            let status_area = layout[1];
 
             // 左側: file_view, 右側: editor(上), term(下)
             let chunks = if app.show_file_view {
                 Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([Constraint::Length(30), Constraint::Min(1)].as_ref())
-                    .split(size)
+                    .split(main_area)
             } else {
-                Rc::from(vec![Rect::new(0, 0, 0, 0), size])
+                Rc::from(vec![Rect::new(0, 0, 0, 0), main_area])
             };
 
             // 右側を上下分割
@@ -79,7 +90,11 @@ fn main() -> Result<(), io::Error> {
 
             // file_view
             if app.show_file_view {
-                f_view.render(f, chunks[0], matches!(app.active_target, ActiveTarget::FileView));
+                f_view.render(
+                    f,
+                    chunks[0],
+                    matches!(app.active_target, ActiveTarget::FileView),
+                );
             }
 
             // editor
@@ -109,6 +124,9 @@ fn main() -> Result<(), io::Error> {
                     });
                 term.render_with_block(f, right_chunks[1], term_block);
             }
+
+            // ステータスバーの描画
+            status.render(f, status_area);
         })?;
 
         // イベント処理

@@ -17,11 +17,11 @@ pub struct FileView {
 
 impl FileView {
     pub fn new(root: PathBuf) -> Self {
-        let entries = Self::read_entries(&root);
+        let entries = Self::read_entries(&root, false);
         Self { root, entries, selected: 0, history: Vec::new() }
     }
 
-    fn read_entries(dir: &Path) -> Vec<PathBuf> {
+    fn read_entries(dir: &Path, add_parent: bool) -> Vec<PathBuf> {
         let mut entries: Vec<_> = WalkDir::new(dir)
             .max_depth(1)
             .into_iter()
@@ -29,21 +29,30 @@ impl FileView {
             .map(|e| e.path().to_path_buf())
             .collect();
         entries.sort();
-        entries
+        // ルートでなければ [..] を先頭に追加
+        if add_parent && dir.parent().is_some() {
+            let mut with_parent = vec![dir.parent().unwrap().to_path_buf()];
+            with_parent.extend(entries);
+            with_parent
+        } else {
+            entries
+        }
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect, active: bool) {
-        let items: Vec<ListItem> = self.entries.iter()
-            .map(|p| {
-                let name = p.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("<invalid>");
-                let display = if p.is_dir() {
-                    format!("{}/", name)
+        let items: Vec<ListItem> = self.entries.iter().enumerate()
+            .map(|(i, p)| {
+                let name = if i == 0 && self.show_parent_entry() {
+                    "[..]".to_string()
                 } else {
-                    name.to_string()
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|n| {
+                            if p.is_dir() { format!("{}/", n) } else { n.to_string() }
+                        })
+                        .unwrap_or("<invalid>".to_string())
                 };
-                ListItem::new(display)
+                ListItem::new(name)
             })
             .collect();
 
@@ -66,7 +75,12 @@ impl FileView {
         f.render_stateful_widget(list, area, &mut self.selected_state());
     }
 
-    fn selected_state(&self) -> ListState {
+    pub fn show_parent_entry(&self) -> bool {
+        // ルートでなければ[..]を表示
+        self.root.parent().is_some()
+    }
+
+    pub fn selected_state(&self) -> ListState {
         let mut state = ListState::default();
         if !self.entries.is_empty() {
             state.select(Some(self.selected));
@@ -92,13 +106,18 @@ impl FileView {
         }
     }
 
-    /// ディレクトリなら中に入る
+    /// ディレクトリなら中に入る。[..]ならback()
     pub fn enter(&mut self) {
-        if let Some(path) = self.entries.get(self.selected) {
+        if self.show_parent_entry() && self.selected == 0 {
+            self.back();
+            return;
+        }
+        let idx = if self.show_parent_entry() { self.selected } else { self.selected };
+        if let Some(path) = self.entries.get(idx) {
             if path.is_dir() {
                 self.history.push((self.root.clone(), self.selected));
                 self.root = path.clone();
-                self.entries = Self::read_entries(&self.root);
+                self.entries = Self::read_entries(&self.root, self.root.parent().is_some());
                 self.selected = 0;
             }
         }
@@ -108,14 +127,15 @@ impl FileView {
     pub fn back(&mut self) {
         if let Some((prev_root, prev_selected)) = self.history.pop() {
             self.root = prev_root;
-            self.entries = Self::read_entries(&self.root);
+            self.entries = Self::read_entries(&self.root, self.root.parent().is_some());
             self.selected = prev_selected;
         }
     }
 
     /// 選択中のファイルパスを返す（ファイルのみ）
     pub fn selected_file(&self) -> Option<PathBuf> {
-        self.entries.get(self.selected).and_then(|p| {
+        let idx = if self.show_parent_entry() { self.selected } else { self.selected };
+        self.entries.get(idx).and_then(|p| {
             if p.is_file() {
                 Some(p.clone())
             } else {
