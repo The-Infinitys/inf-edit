@@ -1,41 +1,102 @@
-name: Release Rust Binary
+name: Build and Release Rust Packages
 
 on:
   push:
-    branches: ["release"]
+    branches:
+      - 'release' # releaseブランチへのプッシュでトリガー
 
 jobs:
-  build_and_release:
-    runs-on: ubuntu-latest # LinuxターゲットなのでUbuntuを指定
+  build_and_package:
+    runs-on: ubuntu-latest # Linux環境で実行
+
+    permissions:
+      contents: write # リリース作成とファイルのアップロードに必要
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu # AMD64
+          - aarch64-unknown-linux-gnu # ARM64
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable # Rustのツールチェインをセットアップ
-
-    - name: Build release binary
-      run: cargo build --release --target x86_64-unknown-linux-gnu # リリースビルドを実行。ターゲットを指定
-
-    - name: Create archive
-      run: |
-        BINARY_NAME="inf-edit" # 実際のバイナリ名に置き換える
-        VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//') # タグ名からvを取り除く
-        TAR_FILE="${BINARY_NAME}-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-        mkdir -p dist
-        cp target/x86_64-unknown-linux-gnu/release/${BINARY_NAME} dist/
-        tar -czvf ${TAR_FILE} -C dist/ ${BINARY_NAME} # バイナリをtar.gzに圧縮
-
-    - name: Upload to GitHub Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
+    - name: Install Rust toolchain for ${{ matrix.target }}
+      uses: dtolnay/rust-toolchain@stable
       with:
-        files: |
-          *.tar.gz # 作成したtar.gzファイルをリリースに添付
-        tag_name: ${{ github.ref }}
-        name: Release ${{ github.ref_name }}
-        body: |
-          - **${{ github.ref_name }}**
-          - Linux (x86_64) binary
-        prerelease: false # プレリリースとして公開する場合はtrue
+        target: ${{ matrix.target }}
+        toolchain: stable # 安定版を使用
+
+    - name: Install cargo-deb and cargo-rpm
+      run: |
+        cargo install cargo-deb --force
+        cargo install cargo-rpm --force
+
+    - name: Install cross-compilation tools for aarch64 (if target is aarch64)
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+    - name: Build release binary for ${{ matrix.target }}
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+
+    - name: Create DEB package for ${{ matrix.target }}
+      id: create_deb
+      run: |
+        # cargo-debはデフォルトでtarget/<TARGET>/debian/your_rust_app_<VERSION>_<ARCH>.deb を生成
+        # --targetを指定して、対象のビルドパスを見るようにする
+        cargo deb --target ${{ matrix.target }}
+        # 生成されたdebファイル名を特定
+        DEB_FILE=$(ls target/${{ matrix.target }}/debian/*.deb)
+        echo "deb_file=${DEB_FILE}" >> $GITHUB_OUTPUT
+
+    - name: Create RPM package for ${{ matrix.target }}
+      id: create_rpm
+      run: |
+        # cargo-rpmはデフォルトでtarget/<TARGET>/rpm/your_rust_app-<VERSION>-<RELEASE>.<ARCH>.rpm を生成
+        # --targetを指定して、対象のビルドパスを見るようにする
+        cargo rpm --target ${{ matrix.target }}
+        # 生成されたrpmファイル名を特定
+        RPM_FILE=$(ls target/${{ matrix.target }}/rpm/*.rpm)
+        echo "rpm_file=${RPM_FILE}" >> $GITHUB_OUTPUT
+
+    - name: Upload DEB package artifact (${{ matrix.target }})
+      uses: actions/upload-artifact@v4
+      with:
+        name: your_rust_app-deb-${{ matrix.target }}
+        path: ${{ steps.create_deb.outputs.deb_file }}
+
+    - name: Upload RPM package artifact (${{ matrix.target }})
+      uses: actions/upload-artifact@v4
+      with:
+        name: your_rust_app-rpm-${{ matrix.target }}
+        path: ${{ steps.create_rpm.outputs.rpm_file }}
+
+  create_github_release:
+    needs: build_and_package # パッケージのビルドが完了してから実行
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release' # releaseブランチへのpush時のみ
+    permissions:
+      contents: write # リリース作成とファイルのアップロードに必要
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.sha }} # SHAをタグ名にするか、手動でタグを切る（推奨）
+          name: Release ${{ github.ref_name }}-${{ github.sha }}
+          body: |
+            This release includes DEB and RPM packages for Linux (x86_64 and aarch64).
+          files: |
+            artifacts/**/*.deb # ダウンロードしたdebファイルをすべて添付
+            artifacts/**/*.rpm # ダウンロードしたrpmファイルをすべて添付
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # リリース作成のためのトークン
