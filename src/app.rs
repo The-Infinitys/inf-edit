@@ -1,0 +1,33 @@
+use crate::{
+    components::{editor::Editor, help_widget::HelpWidget, term::Term},
+    ActiveTarget, Tab,
+};
+
+pub struct App {
+    pub show_file_view: bool,
+    pub show_panel: bool, // Renamed from show_term for clarity with new structure
+    pub active_target: ActiveTarget,
+    pub editors: Vec<Tab<Editor>>,
+    pub terminals: Vec<Tab<Term>>,
+    pub active_editor_tab: usize,
+    pub help_widget: HelpWidget,
+    pub active_terminal_tab: usize,
+}
+
+impl App {
+    pub fn new() -> Self {
+        App {
+            show_file_view: true,
+            show_panel: false,
+            active_target: ActiveTarget::Editor,
+            editors: vec![Tab {
+                content: Editor::new(),
+                title: "Editor 1".to_string(),
+            }],
+            terminals: vec![],
+            active_editor_tab: 0,
+            help_widget: HelpWidget::new(),
+            active_terminal_tab: 0,
+        }
+    }
+}

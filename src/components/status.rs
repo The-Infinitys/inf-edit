@@ -46,7 +46,7 @@ impl StatusBar {
     fn get_resource_usage(&self) -> String {
         // This is a placeholder. In a real application, you'd use a crate like `sysinfo`
         // to get actual CPU and memory usage.
-
+        
         "CPU: 25% Mem: 60%".to_string()
     }
 
@@ -55,7 +55,7 @@ impl StatusBar {
         let current_time = self.get_current_time();
         let resource_usage = self.get_resource_usage();
         let formatted_line = format!(
-            "{:<30} | {:<25} | {:<20}",
+            "{:<0} | {:^0} | {:>0}",
             git_info.red(),
             current_time.yellow(),
             resource_usage.green()
