@@ -4,19 +4,15 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
- // Updated import path
-use ratatui::{
-    Terminal,
-    backend::CrosstermBackend,
-};
-use std::{env, io};
+// Updated import path
 use inf_edit::event_handler;
 use inf_edit::ui;
+use ratatui::{Terminal, backend::CrosstermBackend};
+use std::{env, io};
 
 use inf_edit::ActiveTarget;
-use inf_edit::components::status::StatusBar;
 use inf_edit::components::file_view::FileView;
-
+use inf_edit::components::status::StatusBar;
 
 use inf_edit::app::App;
 
@@ -30,7 +26,7 @@ fn main() -> Result<()> {
 
     let mut app = App::new();
     let mut f_view = FileView::new(env::current_dir()?);
-    let status_bar = StatusBar::new(); // StatusBar::new() expects a message
+    let status_bar = StatusBar::new();
     loop {
         ui::draw(&mut terminal, &mut app, &mut f_view, &status_bar)?;
 

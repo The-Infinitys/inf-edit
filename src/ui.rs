@@ -26,14 +26,12 @@ pub fn draw(
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(2), // タブバー用 高さを2に変更 (Optional, can be 0 if no global tab bar)
-                Constraint::Min(1),
-                Constraint::Length(1),
+                Constraint::Min(0),    // Main content area
+                Constraint::Length(1), // Status bar
             ])
             .split(f.area());
-        let _tabbar_area = layout[0]; // Prefixed as unused
-        let main_area = layout[1];
-        let status_area = layout[2];
+        let main_area = layout[0];
+        let status_area = layout[1];
 
         // New Layout: PrimarySidebar | MainWidget (Editor Tabs + Editor) | SecondarySideBar
         // Panel (Terminal + Terminal Tabs) will be conditionally rendered within one of these,
@@ -70,6 +68,12 @@ pub fn draw(
                     ActiveTarget::FileView | ActiveTarget::PrimarySideBar
                 ),
             );
+            // Example: Apply active style if PrimarySideBar is focused
+            // let block = if app.active_target == ActiveTarget::PrimarySideBar {
+            //     Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Green))
+            // } else {
+            //     Block::default().borders(Borders::ALL)
+            // };
             primary_sidebar.render(f, primary_sidebar_area);
         }
 
@@ -83,6 +87,12 @@ pub fn draw(
                 app.active_terminal_tab,
                 app.active_target,
             );
+            // Example: Apply active style if Panel is focused
+            // let block = if app.active_target == ActiveTarget::Panel {
+            //     Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Green))
+            // } else {
+            //     Block::default().borders(Borders::ALL)
+            // };
             panel.render(f, main_widget_area);
         } else if !app.editors.is_empty() {
             // Otherwise, MainWidget (editor) takes the area
@@ -90,6 +100,12 @@ pub fn draw(
                 MainWidget::new(&mut app.editors, app.active_editor_tab, app.active_target);
             main_widget.render(f, main_widget_area);
         } else {
+            // No editors and no panel to show in the main area.
+            // Render a placeholder or welcome message.
+            // use ratatui::widgets::{Paragraph, Block, Borders};
+            // let placeholder = Paragraph::new("No editors or terminals open.\nCtrl+N for new editor.\nCtrl+Shift+J for new terminal.")
+            //     .block(Block::default().title("Welcome").borders(Borders::ALL));
+            // f.render_widget(placeholder, main_widget_area);
             // Handle case where no editors and no terminals are open/shown
             // Could render a welcome message or empty state
         }
@@ -99,6 +115,12 @@ pub fn draw(
         if app.show_file_view {
             let secondary_sidebar =
                 SecondarySideBar::new(matches!(app.active_target, ActiveTarget::SecondarySideBar));
+            // Example: Apply active style if SecondarySideBar is focused
+            // let block = if app.active_target == ActiveTarget::SecondarySideBar {
+            //     Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Green))
+            // } else {
+            //     Block::default().borders(Borders::ALL)
+            // };
             secondary_sidebar.render(f, secondary_sidebar_area);
         }
 

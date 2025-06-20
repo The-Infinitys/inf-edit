@@ -42,6 +42,8 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                     app.show_panel = false;
                     if !app.editors.is_empty() {
                         app.active_target = ActiveTarget::Editor;
+                    } else if app.show_file_view { // If no editors, fall back to file view if visible
+                        app.active_target = ActiveTarget::FileView;
                     }
                 } else {
                     if app.terminals.is_empty() {
@@ -59,6 +61,7 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                             .min(app.terminals.len().saturating_sub(1));
                     }
                     app.show_panel = true;
+                    // Ensure other main content areas are not focused if panel is now the target
                     app.active_target = ActiveTarget::Panel;
                 }
                 return Ok(AppEvent::Continue);

@@ -19,7 +19,7 @@ impl App {
         App {
             show_file_view: true,
             show_panel: false,
-            active_target: ActiveTarget::Editor,
+            active_target: ActiveTarget::FileView, // Default to FileView
             editors: vec![Tab {
                 content: Editor::new(),
                 title: "Editor 1".to_string(),
