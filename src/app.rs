@@ -1,6 +1,6 @@
 use crate::{
     ActiveTarget, Tab,
-    components::{editor::Editor, help_widget::HelpWidget, term::Term},
+    components::{editor::Editor, help_widget::HelpWidget, secondary_sidebar::SecondarySideBar, term::Term},
 };
 
 pub struct App {
@@ -12,6 +12,7 @@ pub struct App {
     pub active_editor_tab: usize,
     pub help_widget: HelpWidget,
     pub active_terminal_tab: usize,
+    pub secondary_sidebar: SecondarySideBar,
 }
 
 impl Default for App {
@@ -34,6 +35,11 @@ impl App {
             active_editor_tab: 0,
             help_widget: HelpWidget::new(),
             active_terminal_tab: 0,
+            secondary_sidebar: SecondarySideBar::new(),
         }
+    }
+
+    pub fn toggle_secondary_sidebar(&mut self) {
+        self.secondary_sidebar.toggle_visibility();
     }
 }

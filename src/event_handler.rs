@@ -1,6 +1,6 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::{
     ActiveTarget, Tab,
@@ -12,6 +12,9 @@ pub enum AppEvent {
     Quit,
     Continue,
 }
+
+const DEBOUNCE_DURATION: Duration = Duration::from_millis(50); // Debounce for AltGr or similar issues
+static LAST_CTRL_ALT_EVENT_TIME: std::sync::OnceLock<std::sync::Mutex<Instant>> = std::sync::OnceLock::new();
 
 pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
@@ -90,6 +93,20 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                 app.show_panel = true; // Ensure panel is visible
                 return Ok(AppEvent::Continue);
             }
+
+            // Toggle Secondary Sidebar (Ctrl+Alt+B)
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT) && key.code == KeyCode::Char('b') {
+                let mut last_time = LAST_CTRL_ALT_EVENT_TIME
+                    .get_or_init(|| std::sync::Mutex::new(Instant::now().checked_sub(DEBOUNCE_DURATION).unwrap_or_else(Instant::now)))
+                    .lock()
+                    .unwrap();
+                if last_time.elapsed() >= DEBOUNCE_DURATION {
+                    app.toggle_secondary_sidebar();
+                    *last_time = Instant::now();
+                }
+                return Ok(AppEvent::Continue);
+            }
+
 
             // Switch focus (Ctrl+K)
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {

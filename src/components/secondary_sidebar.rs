@@ -5,14 +5,18 @@ use ratatui::{
 };
 
 pub struct SecondarySideBar {
-    _is_active: bool, // Prefixed to silence warning, assuming it might be used later
+    pub is_visible: bool,
 }
 
 impl SecondarySideBar {
-    pub fn new(is_active: bool) -> Self {
+    pub fn new() -> Self {
         Self {
-            _is_active: is_active,
+            is_visible: false, // Start hidden by default
         }
+    }
+
+    pub fn toggle_visibility(&mut self) {
+        self.is_visible = !self.is_visible;
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {
