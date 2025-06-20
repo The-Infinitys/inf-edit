@@ -141,19 +141,17 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             }
 
             // Switch Terminal Tabs (Ctrl+Shift+Left/Right) - Only when Panel is active
-            if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() {
-                if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT) {
-                    match key.code {
-                        KeyCode::Left => {
-                            app.active_terminal_tab = app.active_terminal_tab.saturating_sub(1);
-                            return Ok(AppEvent::Continue);
-                        }
-                        KeyCode::Right => {
-                            app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
-                            return Ok(AppEvent::Continue);
-                        }
-                        _ => {}
+            if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() && key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT) {
+                match key.code {
+                    KeyCode::Left => {
+                        app.active_terminal_tab = app.active_terminal_tab.saturating_sub(1);
+                        return Ok(AppEvent::Continue);
                     }
+                    KeyCode::Right => {
+                        app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
+                        return Ok(AppEvent::Continue);
+                    }
+                    _ => {}
                 }
             }
 

@@ -10,6 +10,12 @@ pub struct HelpWidget {
     pub is_visible: bool,
 }
 
+impl Default for HelpWidget {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HelpWidget {
     pub fn new() -> Self {
         Self { is_visible: false }

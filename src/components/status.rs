@@ -4,6 +4,12 @@ use ratatui::{Frame, layout::Rect, text::Line, widgets::Paragraph};
 use std::{process::Command, time::SystemTime};
 pub struct StatusBar {}
 
+impl Default for StatusBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StatusBar {
     pub fn new() -> Self {
         Self {}
@@ -11,7 +17,7 @@ impl StatusBar {
 
     fn get_git_info(&self) -> String {
         let output = Command::new("git")
-            .args(&["status", "--porcelain", "--branch"])
+            .args(["status", "--porcelain", "--branch"])
             .output();
 
         match output {
