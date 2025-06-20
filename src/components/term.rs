@@ -15,7 +15,7 @@ use tui_term::widget::PseudoTerminal;
 pub struct Term {
     parser: Arc<Mutex<Parser>>,
     writer: Arc<Mutex<Box<dyn Write + Send>>>, // 追加
-    _pty: Box<dyn MasterPty + Send>, // 保持しておくことでdropされないように
+    _pty: Box<dyn MasterPty + Send>,           // 保持しておくことでdropされないように
 }
 
 impl Term {
@@ -57,7 +57,9 @@ impl Term {
                 }
             });
         }
-        let writer = Arc::new(Mutex::new(pty_pair.master.take_writer().expect("clone writer"))); // 追加
+        let writer = Arc::new(Mutex::new(
+            pty_pair.master.take_writer().expect("clone writer"),
+        )); // 追加
 
         Self {
             parser,
@@ -101,28 +103,32 @@ impl Term {
             let _ = writer.write_all(input);
         }
     }
-   pub fn render_with_block(
-    &mut self,
-    f: &mut ratatui::Frame,
-    area: ratatui::layout::Rect,
-    block: ratatui::widgets::Block,
-) {
-    let rows = area.height.saturating_sub(2).max(1);
-    let cols = area.width.max(1);
+    pub fn render_with_block(
+        &mut self,
+        f: &mut ratatui::Frame,
+        area: ratatui::layout::Rect,
+        block: ratatui::widgets::Block,
+    ) {
+        let rows = area.height.saturating_sub(2).max(1);
+        let cols = area.width.max(1);
 
-    {
-        let mut parser = self.parser.lock().unwrap();
-        parser.set_size(rows as u16, cols as u16);
+        {
+            let mut parser = self.parser.lock().unwrap();
+            parser.set_size(rows as u16, cols as u16);
+        }
+        let _ = self._pty.resize(portable_pty::PtySize {
+            rows: rows as u16,
+            cols: cols as u16,
+            pixel_width: 0,
+            pixel_height: 0,
+        });
+
+        let parser = self.parser.lock().unwrap();
+        let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
+        f.render_widget(pseudo_term, area); // area: このウィジェットのRect
+        let (cur_y, cur_x) = parser.screen().cursor_position(); // vt100は(1,1)始まり
+        let cursor_x = area.x + cur_x.saturating_sub(1);
+        let cursor_y = area.y + cur_y.saturating_sub(1);
+        f.set_cursor_position((cursor_x, cursor_y));
     }
-    let _ = self._pty.resize(portable_pty::PtySize {
-        rows: rows as u16,
-        cols: cols as u16,
-        pixel_width: 0,
-        pixel_height: 0,
-    });
-
-    let parser = self.parser.lock().unwrap();
-    let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
-    f.render_widget(pseudo_term, area);
-}
 }

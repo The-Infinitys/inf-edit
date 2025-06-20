@@ -1,20 +1,20 @@
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    Terminal,
 };
+use std::{env, rc::Rc};
 use std::{io, time::Duration};
-use std::rc::Rc;
 
 mod components {
-    pub mod file_view;
     pub mod editor;
+    pub mod file_view;
     pub mod term;
 }
 use components::{editor::Editor, file_view::FileView, term::Term};
@@ -50,6 +50,7 @@ fn main() -> Result<(), io::Error> {
     let mut app = App::new();
     let mut term = Term::new();
     let mut editor = Editor::new();
+    let f_view=FileView::new(env::current_dir()?);
 
     loop {
         terminal.draw(|f| {
@@ -77,20 +78,20 @@ fn main() -> Result<(), io::Error> {
 
             // file_view
             if app.show_file_view {
-                FileView::render(f, chunks[0]);
+                f_view.render(f, chunks[0]);
             }
 
             // editor
             let editor_block = ratatui::widgets::Block::default()
                 .title("Editor")
                 .borders(ratatui::widgets::Borders::ALL)
-                .border_style(
-                    if matches!(app.active_target, ActiveTarget::Editor) {
-                        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default()
-                    }
-                );
+                .border_style(if matches!(app.active_target, ActiveTarget::Editor) {
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                });
             editor.render_with_block(f, right_chunks[0], editor_block);
 
             // term
@@ -98,13 +99,13 @@ fn main() -> Result<(), io::Error> {
                 let term_block = ratatui::widgets::Block::default()
                     .title("Terminal")
                     .borders(ratatui::widgets::Borders::ALL)
-                    .border_style(
-                        if matches!(app.active_target, ActiveTarget::Term) {
-                            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-                        } else {
-                            Style::default()
-                        }
-                    );
+                    .border_style(if matches!(app.active_target, ActiveTarget::Term) {
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default()
+                    });
                 term.render_with_block(f, right_chunks[1], term_block);
             }
         })?;
@@ -146,59 +147,51 @@ fn main() -> Result<(), io::Error> {
 
                 // アクティブなターゲットに応じてキー入力を送信
                 match app.active_target {
-                    ActiveTarget::Editor => {
-                        match key.code {
-                            KeyCode::Char(c) => {
-                                if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                    let ctrl = (c as u8) & 0x1f;
-                                    editor.send_input(&[ctrl]);
-                                } else {
-                                    editor.send_input(c.to_string().as_bytes());
-                                }
+                    ActiveTarget::Editor => match key.code {
+                        KeyCode::Char(c) => {
+                            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                let ctrl = (c as u8) & 0x1f;
+                                editor.send_input(&[ctrl]);
+                            } else {
+                                editor.send_input(c.to_string().as_bytes());
                             }
-                            KeyCode::Enter => editor.send_input(b"\n"),
-                            KeyCode::Tab => editor.send_input(b"\t"),
-                            KeyCode::Backspace => editor.send_input(&[8]),
-                            KeyCode::Left => editor.send_input(b"\x1b[D"),
-                            KeyCode::Right => editor.send_input(b"\x1b[C"),
-                            KeyCode::Up => editor.send_input(b"\x1b[A"),
-                            KeyCode::Down => editor.send_input(b"\x1b[B"),
-                            KeyCode::Esc => editor.send_input(b"\x1b"),
-                            _ => {}
                         }
-                    }
-                    ActiveTarget::Term => {
-                        match key.code {
-                            KeyCode::Char(c) => {
-                                if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                    let ctrl = (c as u8) & 0x1f;
-                                    term.send_input(&[ctrl]);
-                                } else {
-                                    term.send_input(c.to_string().as_bytes());
-                                }
+                        KeyCode::Enter => editor.send_input(b"\n"),
+                        KeyCode::Tab => editor.send_input(b"\t"),
+                        KeyCode::Backspace => editor.send_input(&[8]),
+                        KeyCode::Left => editor.send_input(b"\x1b[D"),
+                        KeyCode::Right => editor.send_input(b"\x1b[C"),
+                        KeyCode::Up => editor.send_input(b"\x1b[A"),
+                        KeyCode::Down => editor.send_input(b"\x1b[B"),
+                        KeyCode::Esc => editor.send_input(b"\x1b"),
+                        _ => {}
+                    },
+                    ActiveTarget::Term => match key.code {
+                        KeyCode::Char(c) => {
+                            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                let ctrl = (c as u8) & 0x1f;
+                                term.send_input(&[ctrl]);
+                            } else {
+                                term.send_input(c.to_string().as_bytes());
                             }
-                            KeyCode::Enter => term.send_input(b"\n"),
-                            KeyCode::Tab => term.send_input(b"\t"),
-                            KeyCode::Backspace => term.send_input(&[8]),
-                            KeyCode::Left => term.send_input(b"\x1b[D"),
-                            KeyCode::Right => term.send_input(b"\x1b[C"),
-                            KeyCode::Up => term.send_input(b"\x1b[A"),
-                            KeyCode::Down => term.send_input(b"\x1b[B"),
-                            KeyCode::Esc => term.send_input(b"\x1b"),
-                            _ => {}
                         }
-                    }
+                        KeyCode::Enter => term.send_input(b"\n"),
+                        KeyCode::Tab => term.send_input(b"\t"),
+                        KeyCode::Backspace => term.send_input(&[8]),
+                        KeyCode::Left => term.send_input(b"\x1b[D"),
+                        KeyCode::Right => term.send_input(b"\x1b[C"),
+                        KeyCode::Up => term.send_input(b"\x1b[A"),
+                        KeyCode::Down => term.send_input(b"\x1b[B"),
+                        KeyCode::Esc => term.send_input(b"\x1b"),
+                        _ => {}
+                    },
                 }
             }
         }
     }
 
     disable_raw_mode()?;
-    execute!(
-        std::io::stdout(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
+    execute!(std::io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
     terminal.show_cursor()?;
     Ok(())
 }

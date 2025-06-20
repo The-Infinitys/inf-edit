@@ -125,5 +125,9 @@ impl Editor {
         let parser = self.parser.lock().unwrap();
         let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
         f.render_widget(pseudo_term, area);
+        let (cur_y, cur_x) = parser.screen().cursor_position(); // vt100は(1,1)始まり
+        let cursor_x = area.x + cur_x.saturating_sub(1);
+        let cursor_y = area.y + cur_y.saturating_sub(1);
+        f.set_cursor_position((cursor_x, cursor_y));
     }
 }
