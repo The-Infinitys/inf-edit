@@ -18,6 +18,12 @@ pub struct Editor {
     _pty: Box<dyn MasterPty + Send>, // 保持しておくことでdropされないように
 }
 
+impl Default for Editor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Editor {
     pub fn new() -> Self {
         let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
@@ -81,12 +87,12 @@ impl Editor {
 
         {
             let mut parser = self.parser.lock().unwrap();
-            parser.set_size(rows as u16, cols as u16);
+            parser.set_size(rows, cols);
         }
         // PTYのリサイズ
         let _ = self._pty.resize(portable_pty::PtySize {
-            rows: rows as u16,
-            cols: cols as u16,
+            rows: rows,
+            cols: cols,
             pixel_width: 0,
             pixel_height: 0,
         });
@@ -113,11 +119,11 @@ impl Editor {
 
         {
             let mut parser = self.parser.lock().unwrap();
-            parser.set_size(rows as u16, cols as u16);
+            parser.set_size(rows, cols);
         }
         let _ = self._pty.resize(portable_pty::PtySize {
-            rows: rows as u16,
-            cols: cols as u16,
+            rows: rows,
+            cols: cols,
             pixel_width: 0,
             pixel_height: 0,
         });
