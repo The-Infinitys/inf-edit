@@ -14,7 +14,8 @@ pub enum AppEvent {
 }
 
 const DEBOUNCE_DURATION: Duration = Duration::from_millis(50); // Debounce for AltGr or similar issues
-static LAST_CTRL_ALT_EVENT_TIME: std::sync::OnceLock<std::sync::Mutex<Instant>> = std::sync::OnceLock::new();
+static LAST_CTRL_ALT_EVENT_TIME: std::sync::OnceLock<std::sync::Mutex<Instant>> =
+    std::sync::OnceLock::new();
 
 pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
@@ -95,9 +96,17 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             }
 
             // Toggle Secondary Sidebar (Ctrl+Alt+B)
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT) && key.code == KeyCode::Char('b') {
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT)
+                && key.code == KeyCode::Char('b')
+            {
                 let mut last_time = LAST_CTRL_ALT_EVENT_TIME
-                    .get_or_init(|| std::sync::Mutex::new(Instant::now().checked_sub(DEBOUNCE_DURATION).unwrap_or_else(Instant::now)))
+                    .get_or_init(|| {
+                        std::sync::Mutex::new(
+                            Instant::now()
+                                .checked_sub(DEBOUNCE_DURATION)
+                                .unwrap_or_else(Instant::now),
+                        )
+                    })
                     .lock()
                     .unwrap();
                 if last_time.elapsed() >= DEBOUNCE_DURATION {
@@ -106,7 +115,6 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                 }
                 return Ok(AppEvent::Continue);
             }
-
 
             // Switch focus (Ctrl+K)
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {

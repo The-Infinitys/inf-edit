@@ -1,6 +1,8 @@
 use crate::{
     ActiveTarget, Tab,
-    components::{editor::Editor, help_widget::HelpWidget, secondary_sidebar::SecondarySideBar, term::Term},
+    components::{
+        editor::Editor, help_widget::HelpWidget, secondary_sidebar::SecondarySideBar, term::Term,
+    },
 };
 
 pub struct App {

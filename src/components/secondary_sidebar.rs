@@ -8,6 +8,12 @@ pub struct SecondarySideBar {
     pub is_visible: bool,
 }
 
+impl Default for SecondarySideBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SecondarySideBar {
     pub fn new() -> Self {
         Self {

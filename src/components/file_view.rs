@@ -6,8 +6,8 @@ use ratatui::{
     widgets::ListState,
     widgets::{Block, Borders, List, ListItem},
 };
-use std::path::{Path, PathBuf};
 use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 struct TreeDisplayItem {
@@ -41,7 +41,10 @@ impl FileView {
     }
 
     fn refresh_items(&mut self) {
-        let old_selected_path = self.display_items.get(self.selected_idx).map(|item| item.path.clone());
+        let old_selected_path = self
+            .display_items
+            .get(self.selected_idx)
+            .map(|item| item.path.clone());
 
         self.display_items.clear();
         let mut temp_list = Vec::new();
@@ -61,10 +64,18 @@ impl FileView {
         self.display_items.extend(temp_list);
 
         if let Some(selected_path) = old_selected_path {
-            if let Some(new_idx) = self.display_items.iter().position(|item| item.path == selected_path) {
+            if let Some(new_idx) = self
+                .display_items
+                .iter()
+                .position(|item| item.path == selected_path)
+            {
                 self.selected_idx = new_idx;
             } else {
-                 self.selected_idx = self.display_items.len().saturating_sub(1).min(self.selected_idx);
+                self.selected_idx = self
+                    .display_items
+                    .len()
+                    .saturating_sub(1)
+                    .min(self.selected_idx);
             }
         } else {
             self.selected_idx = 0;
@@ -85,26 +96,33 @@ impl FileView {
     ) {
         if let Ok(entries) = std::fs::read_dir(dir_path) {
             let mut current_level_entries = Vec::new();
-            for entry_result in entries {
-                if let Ok(entry) = entry_result {
-                    let path = entry.path();
-                    let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-                    if name.starts_with('.') { continue; } // Skip hidden files/dirs
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
+                if name.starts_with('.') {
+                    continue;
+                } // Skip hidden files/dirs
 
-                    let is_dir = path.is_dir();
-                    current_level_entries.push(TreeDisplayItem {
-                        path: path.clone(),
-                        name,
-                        depth,
-                        is_dir,
-                        is_expanded: is_dir && self.expanded_state.contains(&path),
-                        is_parent_link: false,
-                    });
-                }
+                let is_dir = path.is_dir();
+                current_level_entries.push(TreeDisplayItem {
+                    path: path.clone(),
+                    name,
+                    depth,
+                    is_dir,
+                    is_expanded: is_dir && self.expanded_state.contains(&path),
+                    is_parent_link: false,
+                });
             }
 
             current_level_entries.sort_by(|a, b| {
-                a.is_dir.cmp(&b.is_dir).reverse().then_with(|| a.name.cmp(&b.name))
+                a.is_dir
+                    .cmp(&b.is_dir)
+                    .reverse()
+                    .then_with(|| a.name.cmp(&b.name))
             });
 
             for item in current_level_entries {
@@ -129,7 +147,11 @@ impl FileView {
                 } else {
                     "📄 " // File icon
                 };
-                let name_suffix = if item.is_dir && !item.is_parent_link { "/" } else { "" };
+                let name_suffix = if item.is_dir && !item.is_parent_link {
+                    "/"
+                } else {
+                    ""
+                };
                 let display_name = format!("{}{}{}{}", indent, icon, item.name, name_suffix);
                 ListItem::new(Line::from(Span::raw(display_name)))
             })
@@ -183,7 +205,8 @@ impl FileView {
     }
 
     pub fn enter(&mut self) {
-        if let Some(item) = self.display_items.get(self.selected_idx).cloned() { // Cloned to avoid borrow checker issues with self.refresh_items
+        if let Some(item) = self.display_items.get(self.selected_idx).cloned() {
+            // Cloned to avoid borrow checker issues with self.refresh_items
             if item.is_parent_link {
                 self.go_to_parent_directory();
             } else if item.is_dir {
@@ -215,13 +238,13 @@ impl FileView {
                         }
                     }
                 }
-                 // If no direct parent found above, or at depth 0, try to go to parent directory
+                // If no direct parent found above, or at depth 0, try to go to parent directory
                 self.go_to_parent_directory();
             } else {
                 self.go_to_parent_directory();
             }
         } else {
-             self.go_to_parent_directory();
+            self.go_to_parent_directory();
         }
     }
 

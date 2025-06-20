@@ -10,8 +10,7 @@ use crate::{
     app::App,
     components::status::StatusBar,
     components::{
-        file_view::FileView, main_widget::MainWidget, panel::Panel,
-        primary_sidebar::PrimarySideBar,
+        file_view::FileView, main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar,
     },
 };
 
@@ -28,7 +27,7 @@ pub fn draw(
         let main_vertical_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0), // Main Content Area (takes remaining space)
+                Constraint::Min(0),    // Main Content Area (takes remaining space)
                 Constraint::Length(1), // Status Bar Area (fixed height)
             ])
             .split(frame_area);
@@ -51,7 +50,6 @@ pub fn draw(
             .constraints(horizontal_constraints)
             .split(main_content_area);
 
-
         // Assign areas based on visibility and the generated chunks
         let mut current_chunk_index = 0;
 
@@ -68,9 +66,9 @@ pub fn draw(
 
         // The secondary sidebar area is the last chunk if visible.
         let secondary_sidebar_area = if app.secondary_sidebar.is_visible {
-             // Secondary is the next chunk if visible
-             // Use get() with bounds check just in case, though with Min(0) in the middle, it should be the last chunk if visible.
-             main_horizontal_layout_chunks[current_chunk_index]
+            // Secondary is the next chunk if visible
+            // Use get() with bounds check just in case, though with Min(0) in the middle, it should be the last chunk if visible.
+            main_horizontal_layout_chunks[current_chunk_index]
         } else {
             Rect::new(0, 0, 0, 0) // Zero area if not shown
         };
@@ -113,20 +111,25 @@ pub fn draw(
         // Assign Main Widget and Panel areas from the center vertical split
         let main_widget_area = center_vertical_layout_chunks[0]; // Main widget is always the first chunk in the center split
         let panel_area = if app.show_panel {
-             center_vertical_layout_chunks[1] // Panel is the second chunk if visible
+            center_vertical_layout_chunks[1] // Panel is the second chunk if visible
         } else {
-             Rect::new(0, 0, 0, 0) // Zero area if not shown
+            Rect::new(0, 0, 0, 0) // Zero area if not shown
         };
 
         // Render MainWidget (Editor Tabs + Active Editor)
         if !app.editors.is_empty() {
-            MainWidget::new(&mut app.editors, app.active_editor_tab, app.active_target).render(f, main_widget_area);
+            MainWidget::new(&mut app.editors, app.active_editor_tab, app.active_target)
+                .render(f, main_widget_area);
         }
 
         // Render the Panel
         if app.show_panel && !app.terminals.is_empty() {
-             let mut panel = Panel::new(&mut app.terminals, app.active_terminal_tab, app.active_target);
-             panel.render(f, panel_area);
+            let mut panel = Panel::new(
+                &mut app.terminals,
+                app.active_terminal_tab,
+                app.active_target,
+            );
+            panel.render(f, panel_area);
         }
 
         // Render the status bar at the bottom
