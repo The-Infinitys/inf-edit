@@ -1,46 +1,43 @@
+use anyhow::Result;
 use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use std::env;
-use std::io::{Read, Write}; // 追加
+use std::io::{Read, Write};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
 use tui_term::widget::PseudoTerminal;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::{Ordering};
 
 pub struct Term {
     parser: Arc<Mutex<Parser>>,
     writer: Arc<Mutex<Box<dyn Write + Send>>>, // 追加
     _pty: Box<dyn MasterPty + Send>,           // 保持しておくことでdropされないように
-    dead: Arc<AtomicBool>, // ← 追加
+    dead: Arc<AtomicBool>,                     // ← 追加
 }
 
 impl Default for Term {
     fn default() -> Self {
-        Self::new()
+        Self::new().expect("Failed to create default Term") // Or handle error appropriately
     }
 }
 
 impl Term {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
+        // Changed to anyhow::Result
         // SHELL取得
         let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
         let pty_system = native_pty_system();
-        let pty_pair = pty_system
-            .openpty(PtySize {
-                rows: 24,
-                cols: 80,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .expect("Failed to open PTY");
+        let pty_pair = pty_system.openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })?;
 
         // シェル起動
         let cmd = CommandBuilder::new(shell);
-        let _child = pty_pair
-            .slave
-            .spawn_command(cmd)
-            .expect("Failed to spawn shell");
+        let _child = pty_pair.slave.spawn_command(cmd)?;
 
         // vt100パーサ
         let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
@@ -49,7 +46,7 @@ impl Term {
         // PTYからの出力をパーサに流し込むスレッド
         {
             let parser = Arc::clone(&parser);
-            let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
+            let mut reader = pty_pair.master.try_clone_reader()?;
             let dead_clone = dead.clone();
             thread::spawn(move || {
                 let mut buf = [0u8; 4096];
@@ -63,16 +60,14 @@ impl Term {
                 }
             });
         }
-        let writer = Arc::new(Mutex::new(
-            pty_pair.master.take_writer().expect("clone writer"),
-        )); // 追加
+        let writer = Arc::new(Mutex::new(pty_pair.master.take_writer()?)); // 追加
 
-        Self {
+        Ok(Self {
             parser,
             writer, // 追加
             _pty: pty_pair.master,
             dead, // ← 追加
-        }
+        })
     }
 
     pub fn send_input(&self, input: &[u8]) {

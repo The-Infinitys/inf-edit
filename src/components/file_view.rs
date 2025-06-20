@@ -1,12 +1,12 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    widgets::{Block, Borders, List, ListItem},
-    style::{Style, Color, Modifier},
+    style::{Color, Modifier, Style},
     widgets::ListState,
+    widgets::{Block, Borders, List, ListItem},
 };
-use walkdir::WalkDir;
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 pub struct FileView {
     pub root: PathBuf,
@@ -18,7 +18,12 @@ pub struct FileView {
 impl FileView {
     pub fn new(root: PathBuf) -> Self {
         let entries = Self::read_entries(&root, false);
-        Self { root, entries, selected: 0, history: Vec::new() }
+        Self {
+            root,
+            entries,
+            selected: 0,
+            history: Vec::new(),
+        }
     }
 
     fn read_entries(dir: &Path, add_parent: bool) -> Vec<PathBuf> {
@@ -40,7 +45,10 @@ impl FileView {
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect, active: bool) {
-        let items: Vec<ListItem> = self.entries.iter().enumerate()
+        let items: Vec<ListItem> = self
+            .entries
+            .iter()
+            .enumerate()
             .map(|(i, p)| {
                 let name = if i == 0 && self.show_parent_entry() {
                     "[..]".to_string()
@@ -48,7 +56,11 @@ impl FileView {
                     p.file_name()
                         .and_then(|n| n.to_str())
                         .map(|n| {
-                            if p.is_dir() { format!("{}/", n) } else { n.to_string() }
+                            if p.is_dir() {
+                                format!("{}/", n)
+                            } else {
+                                n.to_string()
+                            }
                         })
                         .unwrap_or("<invalid>".to_string())
                 };
@@ -59,17 +71,21 @@ impl FileView {
         let block = Block::default()
             .title("File View")
             .borders(Borders::ALL)
-            .border_style(
-                if active {
-                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default()
-                }
-            );
+            .border_style(if active {
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            });
 
         let list = List::new(items)
             .block(block)
-            .highlight_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            )
             .highlight_symbol("> ");
 
         f.render_stateful_widget(list, area, &mut self.selected_state());
@@ -112,7 +128,11 @@ impl FileView {
             self.back();
             return;
         }
-        let idx = if self.show_parent_entry() { self.selected } else { self.selected };
+        let idx = if self.show_parent_entry() {
+            self.selected
+        } else {
+            self.selected
+        };
         if let Some(path) = self.entries.get(idx) {
             if path.is_dir() {
                 self.history.push((self.root.clone(), self.selected));
@@ -134,13 +154,13 @@ impl FileView {
 
     /// 選択中のファイルパスを返す（ファイルのみ）
     pub fn selected_file(&self) -> Option<PathBuf> {
-        let idx = if self.show_parent_entry() { self.selected } else { self.selected };
-        self.entries.get(idx).and_then(|p| {
-            if p.is_file() {
-                Some(p.clone())
-            } else {
-                None
-            }
-        })
+        let idx = if self.show_parent_entry() {
+            self.selected
+        } else {
+            self.selected
+        };
+        self.entries
+            .get(idx)
+            .and_then(|p| if p.is_file() { Some(p.clone()) } else { None })
     }
 }

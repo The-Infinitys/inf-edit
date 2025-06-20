@@ -1,9 +1,4 @@
-use ratatui::{
-    Frame,
-    layout::Rect,
-    widgets::Paragraph,
-    text::Line,
-};
+use ratatui::{Frame, layout::Rect, text::Line, widgets::Paragraph};
 
 pub struct StatusBar {
     pub message: String,
@@ -11,7 +6,9 @@ pub struct StatusBar {
 
 impl StatusBar {
     pub fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into() }
+        Self {
+            message: message.into(),
+        }
     }
 
     pub fn set_message(&mut self, msg: impl Into<String>) {

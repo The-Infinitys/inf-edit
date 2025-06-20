@@ -1,3 +1,4 @@
+use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
     execute,
@@ -8,8 +9,8 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
 };
-use std::{env, rc::Rc};
-use std::{io, time::Duration};
+use std::time::Duration;
+use std::{env, io, rc::Rc};
 
 mod components {
     pub mod editor;
@@ -35,7 +36,6 @@ struct App {
     show_file_view: bool,
     show_term: bool,
     active_target: ActiveTarget,
-    term: Term, // legacy, can be removed after refactor
     editors: Vec<Tab<Editor>>,
     terminals: Vec<Tab<Term>>,
     active_editor_tab: usize,
@@ -43,36 +43,41 @@ struct App {
 }
 
 impl App {
-    fn new() -> Result<Self, io::Error> {
-        Ok(Self {
+    fn new() -> Self {
+        Self {
             show_file_view: true,
             show_term: false,
             active_target: ActiveTarget::Editor,
-            term: Term::new(),
-            editors: vec![Tab { content: Editor::new(), title: "Editor 1".to_string() }],
+            editors: vec![Tab {
+                content: Editor::new(),
+                title: "Editor 1".to_string(),
+            }],
             terminals: vec![],
             active_editor_tab: 0,
             active_terminal_tab: 0,
-        })
+        }
     }
 }
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<()> {
+    // Changed to anyhow::Result
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new()?;
+    let mut app = App::new();
     let mut f_view = FileView::new(env::current_dir()?);
-    let status = StatusBar::new("Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル Ctrl+N:新規エディタタブ Ctrl+T:タブ切替 ...");
+    let status = StatusBar::new(
+        "Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル Ctrl+N:新規エディタタブ Ctrl+T:タブ切替 ...",
+    );
     loop {
         terminal.draw(|f| {
             let layout = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(1), // タブバー用
+                    Constraint::Length(2), // タブバー用 高さを2に変更
                     Constraint::Min(1),
                     Constraint::Length(1),
                 ])
@@ -82,25 +87,35 @@ fn main() -> Result<(), io::Error> {
             let status_area = layout[2];
 
             // タブバーの描画
-            use ratatui::widgets::{Block, Borders, Tabs};
-            use ratatui::text::{Span, Line}; // ← Spans ではなく Line を使う
+            use ratatui::text::{Line, Span};
+            use ratatui::widgets::{Block, Borders, Tabs}; // ← Spans ではなく Line を使う
 
             // EditorタブとTerminalタブのタイトルを作成
-            let editor_titles: Vec<Line> = app.editors.iter().enumerate().map(|(i, tab)| {
-                let mut title = tab.title.clone();
-                if i == app.active_editor_tab && app.active_target == ActiveTarget::Editor {
-                    title = format!("*{}", title);
-                }
-                Line::from(Span::raw(title))
-            }).collect();
+            let editor_titles: Vec<Line> = app
+                .editors
+                .iter()
+                .enumerate()
+                .map(|(i, tab)| {
+                    let mut title = tab.title.clone();
+                    if i == app.active_editor_tab && app.active_target == ActiveTarget::Editor {
+                        title = format!("*{}", title);
+                    }
+                    Line::from(Span::raw(title))
+                })
+                .collect();
 
-            let terminal_titles: Vec<Line> = app.terminals.iter().enumerate().map(|(i, tab)| {
-                let mut title = tab.title.clone();
-                if i == app.active_terminal_tab && app.active_target == ActiveTarget::Term {
-                    title = format!("*{}", title);
-                }
-                Line::from(Span::raw(title))
-            }).collect();
+            let terminal_titles: Vec<Line> = app
+                .terminals
+                .iter()
+                .enumerate()
+                .map(|(i, tab)| {
+                    let mut title = tab.title.clone();
+                    if i == app.active_terminal_tab && app.active_target == ActiveTarget::Term {
+                        title = format!("*{}", title);
+                    }
+                    Line::from(Span::raw(title))
+                })
+                .collect();
 
             // Tabsウィジェットでタブバーを描画
             let mut all_titles = editor_titles;
@@ -122,7 +137,10 @@ fn main() -> Result<(), io::Error> {
                 Rc::from(vec![Rect::new(0, 0, 0, 0), main_area])
             };
 
-            let right_chunks = if app.show_term && !app.terminals.is_empty() && app.active_target == ActiveTarget::Term {
+            let right_chunks = if app.show_term
+                && !app.terminals.is_empty()
+                && app.active_target == ActiveTarget::Term
+            {
                 Layout::default()
                     .direction(Direction::Vertical)
                     .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
@@ -144,7 +162,9 @@ fn main() -> Result<(), io::Error> {
             if !app.editors.is_empty() {
                 let editor_block = ratatui::widgets::Block::default();
                 if let Some(active_editor_tab) = app.editors.get_mut(app.active_editor_tab) {
-                    active_editor_tab.content.render_with_block(f, right_chunks[0], editor_block);
+                    active_editor_tab
+                        .content
+                        .render_with_block(f, right_chunks[0], editor_block);
                 }
             }
 
@@ -152,18 +172,14 @@ fn main() -> Result<(), io::Error> {
             if app.show_term && !app.terminals.is_empty() {
                 if let Some(active_terminal_tab) = app.terminals.get_mut(app.active_terminal_tab) {
                     let term_block = ratatui::widgets::Block::default();
-                    active_terminal_tab.content.render_with_block(f, right_chunks[1], term_block);
+                    active_terminal_tab
+                        .content
+                        .render_with_block(f, right_chunks[1], term_block);
                 }
             }
 
-            // termフィールドの利用例（例: ステータスバーにプロセス状態表示）
-            let term_status = if app.term.is_dead() {
-                "Term: Dead"
-            } else {
-                "Term: Alive"
-            };
-            let status_with_term = format!("{} | {}", status.message, term_status); // ← .text → .message に修正
-            StatusBar::new(&status_with_term).render(f, status_area);
+            // Render the static status bar message
+            status.render(f, status_area);
         })?;
 
         // イベント処理
@@ -194,13 +210,18 @@ fn main() -> Result<(), io::Error> {
                         app.active_target = ActiveTarget::Editor;
                     } else {
                         if app.terminals.is_empty() {
-                            app.terminals.push(Tab { content: Term::new(), title: format!("Term {}", app.terminals.len() + 1) });
+                            app.terminals.push(Tab {
+                                content: Term::new()?,
+                                title: format!("Term {}", app.terminals.len() + 1),
+                            }); // エラー伝播を追加
                             app.active_terminal_tab = app.terminals.len() - 1;
                         } else {
                             if app.terminals[app.active_terminal_tab].content.is_dead() {
-                                app.terminals[app.active_terminal_tab].content = Term::new();
+                                app.terminals[app.active_terminal_tab].content = Term::new()?; // エラー伝播を追加
                             }
-                            app.active_terminal_tab = app.active_terminal_tab.min(app.terminals.len().saturating_sub(1));
+                            app.active_terminal_tab = app
+                                .active_terminal_tab
+                                .min(app.terminals.len().saturating_sub(1));
                         }
                         app.show_term = true;
                         app.active_target = ActiveTarget::Term;
@@ -210,18 +231,24 @@ fn main() -> Result<(), io::Error> {
                 // ctrl+k でターゲット切り替え（ターミナルが開いているときのみ）
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {
                     if app.show_term {
-                        app.active_target = match app.active_target {
-                            ActiveTarget::Editor => ActiveTarget::Term,
-                            ActiveTarget::Term => ActiveTarget::Editor,
-                            ActiveTarget::FileView => ActiveTarget::FileView,
-                        };
-                        if app.active_target == ActiveTarget::Editor {
-                            if !app.terminals.is_empty() {
-                                app.active_target = ActiveTarget::Term;
+                        match app.active_target {
+                            ActiveTarget::Editor => {
+                                if !app.terminals.is_empty() {
+                                    app.active_target = ActiveTarget::Term;
+                                }
                             }
-                        } else if app.active_target == ActiveTarget::Term {
-                            if !app.editors.is_empty() {
-                                app.active_target = ActiveTarget::Editor;
+                            ActiveTarget::Term => {
+                                if !app.editors.is_empty() {
+                                    app.active_target = ActiveTarget::Editor;
+                                }
+                            }
+                            ActiveTarget::FileView => {
+                                // If in FileView, prioritize switching to Editor, then Term
+                                if !app.editors.is_empty() {
+                                    app.active_target = ActiveTarget::Editor;
+                                } else if !app.terminals.is_empty() {
+                                    app.active_target = ActiveTarget::Term;
+                                }
                             }
                         }
                     }
@@ -229,7 +256,10 @@ fn main() -> Result<(), io::Error> {
                 }
                 // Ctrl+N for new editor tab
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('n') {
-                    app.editors.push(Tab { content: Editor::new(), title: format!("Editor {}", app.editors.len() + 1) });
+                    app.editors.push(Tab {
+                        content: Editor::new(),
+                        title: format!("Editor {}", app.editors.len() + 1),
+                    });
                     app.active_editor_tab = app.editors.len() - 1;
                     app.active_target = ActiveTarget::Editor;
                     app.show_term = false;
@@ -240,7 +270,8 @@ fn main() -> Result<(), io::Error> {
                     if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
                         app.active_editor_tab = (app.active_editor_tab + 1) % app.editors.len();
                     } else if app.active_target == ActiveTarget::Term && !app.terminals.is_empty() {
-                        app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
+                        app.active_terminal_tab =
+                            (app.active_terminal_tab + 1) % app.terminals.len();
                     }
                     continue;
                 }
@@ -248,14 +279,17 @@ fn main() -> Result<(), io::Error> {
                 // アクティブなターゲットに応じてキー入力を送信
                 match app.active_target {
                     ActiveTarget::Editor => {
-                        if let Some(active_editor_tab) = app.editors.get_mut(app.active_editor_tab) {
+                        if let Some(active_editor_tab) = app.editors.get_mut(app.active_editor_tab)
+                        {
                             match key.code {
                                 KeyCode::Char(c) => {
                                     if key.modifiers.contains(KeyModifiers::CONTROL) {
                                         let ctrl = (c as u8) & 0x1f;
                                         active_editor_tab.content.send_input(&[ctrl]);
                                     } else {
-                                        active_editor_tab.content.send_input(c.to_string().as_bytes());
+                                        active_editor_tab
+                                            .content
+                                            .send_input(c.to_string().as_bytes());
                                     }
                                 }
                                 KeyCode::Enter => active_editor_tab.content.send_input(b"\n"),
@@ -271,14 +305,18 @@ fn main() -> Result<(), io::Error> {
                         }
                     }
                     ActiveTarget::Term => {
-                        if let Some(active_terminal_tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                        if let Some(active_terminal_tab) =
+                            app.terminals.get_mut(app.active_terminal_tab)
+                        {
                             match key.code {
                                 KeyCode::Char(c) => {
                                     if key.modifiers.contains(KeyModifiers::CONTROL) {
                                         let ctrl = (c as u8) & 0x1f;
                                         active_terminal_tab.content.send_input(&[ctrl]);
                                     } else {
-                                        active_terminal_tab.content.send_input(c.to_string().as_bytes());
+                                        active_terminal_tab
+                                            .content
+                                            .send_input(c.to_string().as_bytes());
                                     }
                                 }
                                 KeyCode::Enter => active_terminal_tab.content.send_input(b"\n"),
@@ -293,24 +331,24 @@ fn main() -> Result<(), io::Error> {
                             }
                         }
                     }
-                    ActiveTarget::FileView => {
-                        match key.code {
-                            KeyCode::Down | KeyCode::Char('j') => f_view.next(),
-                            KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
-                            KeyCode::Enter => {
-                                if let Some(file) = f_view.selected_file() {
-                                    if let Some(active_editor_tab) = app.editors.get_mut(app.active_editor_tab) {
-                                        active_editor_tab.content.open_file(file);
-                                    }
-                                    app.active_target = ActiveTarget::Editor;
-                                } else {
-                                    f_view.enter();
+                    ActiveTarget::FileView => match key.code {
+                        KeyCode::Down | KeyCode::Char('j') => f_view.next(),
+                        KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
+                        KeyCode::Enter => {
+                            if let Some(file) = f_view.selected_file() {
+                                if let Some(active_editor_tab) =
+                                    app.editors.get_mut(app.active_editor_tab)
+                                {
+                                    active_editor_tab.content.open_file(file);
                                 }
+                                app.active_target = ActiveTarget::Editor;
+                            } else {
+                                f_view.enter();
                             }
-                            KeyCode::Backspace | KeyCode::Char('h') => f_view.back(),
-                            _ => {}
                         }
-                    }
+                        KeyCode::Backspace | KeyCode::Char('h') => f_view.back(),
+                        _ => {}
+                    },
                 }
             }
         }
