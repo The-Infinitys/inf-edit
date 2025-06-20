@@ -1,10 +1,4 @@
 use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders},
-};
 use std::env;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
@@ -94,8 +88,8 @@ impl Editor {
             parser.set_size(rows, cols);
         }
         let _ = self._pty.resize(portable_pty::PtySize {
-            rows: rows,
-            cols: cols,
+            rows,
+            cols,
             pixel_width: 0,
             pixel_height: 0,
         });
