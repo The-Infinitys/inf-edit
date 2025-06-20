@@ -32,7 +32,7 @@ impl FileView {
         entries
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect) {
+    pub fn render(&self, f: &mut Frame, area: Rect, active: bool) {
         let items: Vec<ListItem> = self.entries.iter()
             .map(|p| {
                 let name = p.file_name()
@@ -47,8 +47,19 @@ impl FileView {
             })
             .collect();
 
+        let block = Block::default()
+            .title("File View")
+            .borders(Borders::ALL)
+            .border_style(
+                if active {
+                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                }
+            );
+
         let list = List::new(items)
-            .block(Block::default().title("File View").borders(Borders::ALL))
+            .block(block)
             .highlight_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
             .highlight_symbol("> ");
 

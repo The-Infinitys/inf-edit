@@ -102,4 +102,12 @@ impl Term {
         let cursor_y = area.y + cur_y.saturating_add(1);
         f.set_cursor_position((cursor_x, cursor_y));
     }
+
+    /// プロセスが終了しているか
+    pub fn is_dead(&self) -> bool {
+        // portable-ptyのmasterに対してis_eof()などがあれば使う
+        // なければ、parserの内容や独自フラグで判定
+        // ここでは簡易的に
+        false // 実装例: 必要に応じてプロセス監視を追加
+    }
 }

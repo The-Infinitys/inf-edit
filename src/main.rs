@@ -79,7 +79,7 @@ fn main() -> Result<(), io::Error> {
 
             // file_view
             if app.show_file_view {
-                f_view.render(f, chunks[0]);
+                f_view.render(f, chunks[0], matches!(app.active_target, ActiveTarget::FileView));
             }
 
             // editor
@@ -124,15 +124,25 @@ fn main() -> Result<(), io::Error> {
                 }
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('b') {
                     app.show_file_view = !app.show_file_view;
-                }
-                if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                    app.show_term = !app.show_term;
-                    // ターミナルを開いたときはTermをアクティブに、閉じたらEditorをアクティブに
-                    app.active_target = if app.show_term {
+                    // file_viewを開いたときはFileViewをアクティブに、閉じたらEditorをアクティブに
+                    app.active_target = if app.show_file_view {
+                        ActiveTarget::FileView
+                    } else if app.show_term {
                         ActiveTarget::Term
                     } else {
                         ActiveTarget::Editor
                     };
+                    continue;
+                }
+                if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
+                    if app.show_term {
+                        app.show_term = false;
+                        app.active_target = ActiveTarget::Editor;
+                    } else {
+                        term = Term::new(); // 新しいインスタンスを生成
+                        app.show_term = true;
+                        app.active_target = ActiveTarget::Term;
+                    }
                     continue;
                 }
                 // ctrl+k でターゲット切り替え（ターミナルが開いているときのみ）
@@ -206,6 +216,14 @@ fn main() -> Result<(), io::Error> {
                         }
                     }
                 }
+            }
+        }
+
+        // ターミナルプロセスの終了監視
+        if app.show_term {
+            if term.is_dead() {
+                app.show_term = false;
+                app.active_target = ActiveTarget::Editor;
             }
         }
     }
