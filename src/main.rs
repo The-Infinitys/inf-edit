@@ -6,10 +6,11 @@ use crossterm::{
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
     Terminal,
 };
 use std::{io, time::Duration};
-use std::rc::Rc; // 追加
+use std::rc::Rc;
 
 mod components {
     pub mod file_view;
@@ -21,14 +22,12 @@ use components::{editor::Editor, file_view::FileView, term::Term};
 enum ActiveTarget {
     Editor,
     Term,
-    // 必要なら FileView なども
 }
 
 struct App {
     show_file_view: bool,
     show_term: bool,
     active_target: ActiveTarget,
-    // 必要に応じて他の状態も追加
 }
 
 impl App {
@@ -49,8 +48,9 @@ fn main() -> Result<(), io::Error> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-    let mut term=Term::new();
-    let mut editor=Editor::new();
+    let mut term = Term::new();
+    let mut editor = Editor::new();
+
     loop {
         terminal.draw(|f| {
             let size = f.area();
@@ -79,11 +79,33 @@ fn main() -> Result<(), io::Error> {
             if app.show_file_view {
                 FileView::render(f, chunks[0]);
             }
+
             // editor
-            editor.render(f, right_chunks[0]);
+            let editor_block = ratatui::widgets::Block::default()
+                .title("Editor")
+                .borders(ratatui::widgets::Borders::ALL)
+                .border_style(
+                    if matches!(app.active_target, ActiveTarget::Editor) {
+                        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default()
+                    }
+                );
+            editor.render_with_block(f, right_chunks[0], editor_block);
+
             // term
             if app.show_term {
-                term.render(f, right_chunks[1]);
+                let term_block = ratatui::widgets::Block::default()
+                    .title("Terminal")
+                    .borders(ratatui::widgets::Borders::ALL)
+                    .border_style(
+                        if matches!(app.active_target, ActiveTarget::Term) {
+                            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default()
+                        }
+                    );
+                term.render_with_block(f, right_chunks[1], term_block);
             }
         })?;
 
@@ -102,19 +124,29 @@ fn main() -> Result<(), io::Error> {
                     app.show_file_view = !app.show_file_view;
                 }
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
+                    app.show_term = !app.show_term;
+                    // ターミナルを開いたときはTermをアクティブに、閉じたらEditorをアクティブに
+                    app.active_target = if app.show_term {
+                        ActiveTarget::Term
+                    } else {
+                        ActiveTarget::Editor
+                    };
+                    continue;
+                }
+                // ctrl+k でターゲット切り替え（ターミナルが開いているときのみ）
+                if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {
                     if app.show_term {
                         app.active_target = match app.active_target {
                             ActiveTarget::Editor => ActiveTarget::Term,
                             ActiveTarget::Term => ActiveTarget::Editor,
                         };
                     }
-                    continue; // ここで他の処理をスキップ
+                    continue;
                 }
 
                 // アクティブなターゲットに応じてキー入力を送信
                 match app.active_target {
                     ActiveTarget::Editor => {
-                        // ここにeditorへのキー送信処理
                         match key.code {
                             KeyCode::Char(c) => {
                                 if key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -132,12 +164,10 @@ fn main() -> Result<(), io::Error> {
                             KeyCode::Up => editor.send_input(b"\x1b[A"),
                             KeyCode::Down => editor.send_input(b"\x1b[B"),
                             KeyCode::Esc => editor.send_input(b"\x1b"),
-                            // 必要に応じて他のキーも追加
                             _ => {}
                         }
                     }
                     ActiveTarget::Term => {
-                        // termにもsend_inputを実装して同様に送信
                         match key.code {
                             KeyCode::Char(c) => {
                                 if key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -155,7 +185,6 @@ fn main() -> Result<(), io::Error> {
                             KeyCode::Up => term.send_input(b"\x1b[A"),
                             KeyCode::Down => term.send_input(b"\x1b[B"),
                             KeyCode::Esc => term.send_input(b"\x1b"),
-                            // 必要に応じて他のキーも追加
                             _ => {}
                         }
                     }

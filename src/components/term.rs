@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, Borders},
 };
 use std::env;
-use std::io::Read;
+use std::io::{Read, Write}; // 追加
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
@@ -14,6 +14,7 @@ use tui_term::widget::PseudoTerminal;
 
 pub struct Term {
     parser: Arc<Mutex<Parser>>,
+    writer: Arc<Mutex<Box<dyn Write + Send>>>, // 追加
     _pty: Box<dyn MasterPty + Send>, // 保持しておくことでdropされないように
 }
 
@@ -56,9 +57,11 @@ impl Term {
                 }
             });
         }
+        let writer = Arc::new(Mutex::new(pty_pair.master.take_writer().expect("clone writer"))); // 追加
 
         Self {
             parser,
+            writer, // 追加
             _pty: pty_pair.master,
         }
     }
@@ -94,8 +97,32 @@ impl Term {
     }
 
     pub fn send_input(&self, input: &[u8]) {
-        if let Ok(mut writer) = self._pty.take_writer() {
+        if let Ok(mut writer) = self.writer.lock() {
             let _ = writer.write_all(input);
         }
     }
+   pub fn render_with_block(
+    &mut self,
+    f: &mut ratatui::Frame,
+    area: ratatui::layout::Rect,
+    block: ratatui::widgets::Block,
+) {
+    let rows = area.height.saturating_sub(2).max(1);
+    let cols = area.width.max(1);
+
+    {
+        let mut parser = self.parser.lock().unwrap();
+        parser.set_size(rows as u16, cols as u16);
+    }
+    let _ = self._pty.resize(portable_pty::PtySize {
+        rows: rows as u16,
+        cols: cols as u16,
+        pixel_width: 0,
+        pixel_height: 0,
+    });
+
+    let parser = self.parser.lock().unwrap();
+    let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
+    f.render_widget(pseudo_term, area);
+}
 }
