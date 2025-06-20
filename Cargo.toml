@@ -1,7 +1,12 @@
 [package]
-name = "inf-edit"
+name = "inf-edit" # アプリケーション名
 version = "1.1.0"
 edition = "2024"
+description = "A command-line tool for editing files." # アプリケーションの簡単な説明
+license = "MIT" # またはお使いのライセンス（例: "GPL-3.0-or-later"）
+authors = ["Your Name <your.email@example.com>"] # あなたの名前とメールアドレスに置き換えてください
+repository = "https://github.com/your-org/inf-edit" # GitHubリポジトリのURLに置き換えてください
+homepage = "https://github.com/your-org/inf-edit" # プロジェクトのホームページURLに置き換えてください
 
 [dependencies]
 anyhow = "1.0.98"
@@ -12,3 +17,43 @@ portable-pty = "0.9.0"
 ratatui = "0.29.0"
 tui-term = "0.2.0"
 walkdir = "2.5.0"
+
+# --- cargo-deb (DEBパッケージ) のためのメタデータ ---
+[package.metadata.deb]
+maintainer = "Your Name <your.email@example.com>" # パッケージのメンテナー情報
+copyright = "2024 Your Name" # 著作権情報（例: 年号と名前）
+depends = "libc6" # 依存する基本的なシステムライブラリ（多くの場合必要）
+section = "utility" # パッケージのカテゴリ（例: "utility", "devel", "text" など）
+priority = "optional" # パッケージの重要度
+assets = [
+    # 各ターゲットアーキテクチャのバイナリを /usr/bin/inf-edit に配置
+    # パスはGitHub Actionsでビルドされる実際のバイナリパスに合わせてください
+    ["target/x86_64-unknown-linux-gnu/release/inf-edit", "/usr/bin/", "755"],
+    ["target/aarch64-unknown-linux-gnu/release/inf-edit", "/usr/bin/", "755"],
+    # 必要に応じて、マニュアルページや設定ファイルなどを追加
+    # 例: ["manpages/inf-edit.1", "/usr/share/man/man1/", "644"]
+]
+# より高度な設定（例: debian/control ファイルの指定、インストール/アンインストールスクリプト）は
+# ドキュメントを参照してください: https://docs.rs/cargo-deb/latest/cargo_deb/#configuration
+
+# --- cargo-rpm (RPMパッケージ) のためのメタデータ ---
+[package.metadata.rpm]
+name = "inf-edit" # RPMパッケージ名 (DEBパッケージ名と一致させることが多い)
+version = "1.1.0" # RPMパッケージのバージョン
+release = "1" # RPMのリリースカウンター（通常は1から開始し、パッケージ更新ごとに増やす）
+summary = "A command-line tool for editing files." # RPMの簡単な要約
+license = "MIT" # RPMパッケージのライセンス
+group = "Applications/Utilities" # RPMパッケージのグループカテゴリ（例: "Applications/Editors", "System Environment/Shells"など）
+packager = "Your Name <your.email@example.com>" # パッケージ作成者の情報
+description = "A command-line tool for editing files with advanced features." # RPMの詳細な説明
+# dependencies = ["glibc"] # RPMの依存関係（必要に応じて追加）
+assets = [
+    # 各ターゲットアーキテクチャのバイナリを /usr/bin/inf-edit に配置
+    # sourceはビルドされたバイナリのパス、destはインストール先のパス
+    { source = "target/x86_64-unknown-linux-gnu/release/inf-edit", dest = "/usr/bin/inf-edit", mode = "0755" },
+    { source = "target/aarch64-unknown-linux-gnu/release/inf-edit", dest = "/usr/bin/inf-edit", mode = "0755" },
+    # 必要に応じて、追加のファイル（manページなど）
+    # { source = "manpages/inf-edit.1", dest = "/usr/share/man/man1/inf-edit.1", mode = "0644" }
+]
+# より高度な設定（例: rpmmacros, pre/postスクリプト）は
+# ドキュメントを参照してください: https://docs.rs/cargo-rpm/latest/cargo_rpm/#configuration
