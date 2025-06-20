@@ -96,6 +96,27 @@ fn main() -> Result<(), io::Error> {
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
                     app.show_term = !app.show_term;
                 }
+
+                // エディタがアクティブな場合
+                let editor_is_active = true; // ここは実際のアクティブ状態に応じて変更
+                if editor_is_active {
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            // 日本語なども含めUTF-8で送る
+                            editor.send_input(c.to_string().as_bytes());
+                        }
+                        KeyCode::Enter => editor.send_input(b"\n"),
+                        KeyCode::Tab => editor.send_input(b"\t"),
+                        KeyCode::Backspace => editor.send_input(&[8]),
+                        KeyCode::Left => editor.send_input(b"\x1b[D"),
+                        KeyCode::Right => editor.send_input(b"\x1b[C"),
+                        KeyCode::Up => editor.send_input(b"\x1b[A"),
+                        KeyCode::Down => editor.send_input(b"\x1b[B"),
+                        KeyCode::Esc => editor.send_input(b"\x1b"),
+                        // 必要に応じて他のキーも追加
+                        _ => {}
+                    }
+                }
             }
         }
     }

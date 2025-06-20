@@ -8,18 +8,18 @@ use tui_term::widget::PseudoTerminal;
 use tui_term::vt100::Parser;
 use portable_pty::{CommandBuilder, native_pty_system, PtySize, MasterPty};
 use std::env;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::thread;
 use std::sync::{Arc, Mutex};
 
 pub struct Editor {
     parser: Arc<Mutex<Parser>>,
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
     _pty: Box<dyn MasterPty + Send>, // 保持しておくことでdropされないように
 }
 
 impl Editor {
     pub fn new() -> Self {
-        // EDITOR取得
         let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
         let pty_system = native_pty_system();
         let pty_pair = pty_system.openpty(PtySize {
@@ -29,12 +29,13 @@ impl Editor {
             pixel_height: 0,
         }).expect("Failed to open PTY");
 
-        // エディタ起動
         let cmd = CommandBuilder::new(editor);
         let _child = pty_pair.slave.spawn_command(cmd).expect("Failed to spawn editor");
 
-        // vt100パーサ
         let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
+
+        // ライターを保持
+        let writer = Arc::new(Mutex::new(pty_pair.master.take_writer().expect("clone writer")));
 
         // PTYからの出力をパーサに流し込むスレッド
         {
@@ -52,7 +53,15 @@ impl Editor {
 
         Self {
             parser,
+            writer,
             _pty: pty_pair.master,
+        }
+    }
+
+    /// 入力をエディタプロセスに送る
+    pub fn send_input(&self, input: &[u8]) {
+        if let Ok(mut writer) = self.writer.lock() {
+            let _ = writer.write_all(input);
         }
     }
 
