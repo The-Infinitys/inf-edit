@@ -76,8 +76,8 @@ impl Editor {
 
     pub fn render(&mut self, f: &mut Frame, area: Rect) {
         // areaのサイズに合わせてパーサとPTYをリサイズ
-        let rows = area.height.max(1);
-        let cols = area.width.max(1);
+        let rows = area.height.saturating_sub(2).max(1);
+        let cols = area.width.saturating_sub(2).max(1);
 
         {
             let mut parser = self.parser.lock().unwrap();
