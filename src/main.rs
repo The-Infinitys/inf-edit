@@ -4,6 +4,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use inf_edit::components::help_widget::HelpWidget; // Updated import path
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -27,6 +28,7 @@ struct App {
     editors: Vec<Tab<Editor>>,
     terminals: Vec<Tab<Term>>, // Now Tab refers to inf_edit::Tab
     active_editor_tab: usize,
+    help_widget: HelpWidget,
     active_terminal_tab: usize,
 }
 
@@ -39,9 +41,11 @@ impl App {
             editors: vec![Tab {
                 content: inf_edit::components::editor::Editor::new(), // Assuming Editor is also part of the lib
                 title: "Editor 1".to_string(),
+                
             }],
             terminals: vec![],
             active_editor_tab: 0,
+            help_widget: HelpWidget::new(), // Initialize HelpWidget
             active_terminal_tab: 0,
         }
     }
@@ -57,7 +61,7 @@ fn main() -> Result<()> {
 
     let mut app = App::new();
     let mut f_view = FileView::new(env::current_dir()?);
-    let status = StatusBar::new(
+    let mut status_bar = StatusBar::new( // status -> status_bar, make it mutable
         "Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル Ctrl+N:新規エディタタブ Ctrl+T:タブ切替 ...",
     );
     loop {
@@ -83,7 +87,10 @@ fn main() -> Result<()> {
             // The main_area will be used for the new layout.
 
             // New Layout: PrimarySidebar | MainWidget (Editor Tabs + Editor) | SecondarySidebar
-            // Panel (Terminal + Terminal Tabs) will be conditionally rendered within one of these, or as an overlay.
+            // Panel (Terminal + Terminal Tabs) will be conditionally rendered within one of these, 
+            // but for now, we will render it on top of everything by checking a flag.
+
+
             // For now, let's assume Panel is toggled and might take over the MainWidget area or a portion of it.
 
             let outer_layout = if app.show_file_view {
@@ -151,7 +158,10 @@ fn main() -> Result<()> {
             */
 
             // Render the static status bar message
-            status.render(f, status_area);
+            status_bar.render(f, status_area); // Use the persistent status_bar instance
+
+            // Render Help widget on top, if visible
+            app.help_widget.render(f, f.area());
         })?;
 
         // イベント処理
@@ -202,6 +212,11 @@ fn main() -> Result<()> {
                         app.show_panel = true; // Was show_term
                         app.active_target = inf_edit::ActiveTarget::Panel; // Was Term
                     }
+                    continue;
+                }
+
+                if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('h') {
+                    app.help_widget.toggle_visibility();
                     continue;
                 }
                 // ctrl+k でターゲット切り替え（ターミナルが開いているときのみ）

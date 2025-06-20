@@ -6,3 +6,4 @@ pub mod primary_sidebar;
 pub mod secondary_sidebar;
 pub mod panel;
 pub mod main_widget;
+pub mod help_widget;
