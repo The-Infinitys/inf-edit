@@ -92,4 +92,10 @@ impl Term {
             );
         f.render_widget(pseudo_term, area);
     }
+
+    pub fn send_input(&self, input: &[u8]) {
+        if let Ok(mut writer) = self._pty.take_writer() {
+            let _ = writer.write_all(input);
+        }
+    }
 }

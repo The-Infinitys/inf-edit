@@ -18,9 +18,16 @@ mod components {
 }
 use components::{editor::Editor, file_view::FileView, term::Term};
 
+enum ActiveTarget {
+    Editor,
+    Term,
+    // 必要なら FileView なども
+}
+
 struct App {
     show_file_view: bool,
     show_term: bool,
+    active_target: ActiveTarget,
     // 必要に応じて他の状態も追加
 }
 
@@ -29,6 +36,7 @@ impl App {
         Self {
             show_file_view: true,
             show_term: false,
+            active_target: ActiveTarget::Editor,
         }
     }
 }
@@ -94,33 +102,62 @@ fn main() -> Result<(), io::Error> {
                     app.show_file_view = !app.show_file_view;
                 }
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                    app.show_term = !app.show_term;
+                    if app.show_term {
+                        app.active_target = match app.active_target {
+                            ActiveTarget::Editor => ActiveTarget::Term,
+                            ActiveTarget::Term => ActiveTarget::Editor,
+                        };
+                    }
+                    continue; // ここで他の処理をスキップ
                 }
 
-                // エディタがアクティブな場合
-                let editor_is_active = true; // ここは実際のアクティブ状態に応じて変更
-                if editor_is_active {
-                    match key.code {
-                        KeyCode::Char(c) => {
-                            if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                // Ctrl+A～Ctrl+ZはASCII 1～26
-                                let ctrl = (c as u8) & 0x1f;
-                                editor.send_input(&[ctrl]);
-                            } else {
-                                // 通常の文字
-                                editor.send_input(c.to_string().as_bytes());
+                // アクティブなターゲットに応じてキー入力を送信
+                match app.active_target {
+                    ActiveTarget::Editor => {
+                        // ここにeditorへのキー送信処理
+                        match key.code {
+                            KeyCode::Char(c) => {
+                                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                    let ctrl = (c as u8) & 0x1f;
+                                    editor.send_input(&[ctrl]);
+                                } else {
+                                    editor.send_input(c.to_string().as_bytes());
+                                }
                             }
+                            KeyCode::Enter => editor.send_input(b"\n"),
+                            KeyCode::Tab => editor.send_input(b"\t"),
+                            KeyCode::Backspace => editor.send_input(&[8]),
+                            KeyCode::Left => editor.send_input(b"\x1b[D"),
+                            KeyCode::Right => editor.send_input(b"\x1b[C"),
+                            KeyCode::Up => editor.send_input(b"\x1b[A"),
+                            KeyCode::Down => editor.send_input(b"\x1b[B"),
+                            KeyCode::Esc => editor.send_input(b"\x1b"),
+                            // 必要に応じて他のキーも追加
+                            _ => {}
                         }
-                        KeyCode::Enter => editor.send_input(b"\n"),
-                        KeyCode::Tab => editor.send_input(b"\t"),
-                        KeyCode::Backspace => editor.send_input(&[8]),
-                        KeyCode::Left => editor.send_input(b"\x1b[D"),
-                        KeyCode::Right => editor.send_input(b"\x1b[C"),
-                        KeyCode::Up => editor.send_input(b"\x1b[A"),
-                        KeyCode::Down => editor.send_input(b"\x1b[B"),
-                        KeyCode::Esc => editor.send_input(b"\x1b"),
-                        // 必要に応じて他のキーも追加
-                        _ => {}
+                    }
+                    ActiveTarget::Term => {
+                        // termにもsend_inputを実装して同様に送信
+                        match key.code {
+                            KeyCode::Char(c) => {
+                                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                    let ctrl = (c as u8) & 0x1f;
+                                    term.send_input(&[ctrl]);
+                                } else {
+                                    term.send_input(c.to_string().as_bytes());
+                                }
+                            }
+                            KeyCode::Enter => term.send_input(b"\n"),
+                            KeyCode::Tab => term.send_input(b"\t"),
+                            KeyCode::Backspace => term.send_input(&[8]),
+                            KeyCode::Left => term.send_input(b"\x1b[D"),
+                            KeyCode::Right => term.send_input(b"\x1b[C"),
+                            KeyCode::Up => term.send_input(b"\x1b[A"),
+                            KeyCode::Down => term.send_input(b"\x1b[B"),
+                            KeyCode::Esc => term.send_input(b"\x1b"),
+                            // 必要に応じて他のキーも追加
+                            _ => {}
+                        }
                     }
                 }
             }
