@@ -41,7 +41,8 @@ fn main() -> Result<(), io::Error> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-
+    let mut term=Term::new();
+    let mut editor=Editor::new();
     loop {
         terminal.draw(|f| {
             let size = f.area();
@@ -71,10 +72,10 @@ fn main() -> Result<(), io::Error> {
                 FileView::render(f, chunks[0]);
             }
             // editor
-            Editor::render(f, right_chunks[0]);
+            editor.render(f, right_chunks[0]);
             // term
             if app.show_term {
-                Term::render(f, right_chunks[1]);
+                term.render(f, right_chunks[1]);
             }
         })?;
 
@@ -101,7 +102,7 @@ fn main() -> Result<(), io::Error> {
 
     disable_raw_mode()?;
     execute!(
-        terminal.backend_mut(),
+        std::io::stdout(),
         LeaveAlternateScreen,
         DisableMouseCapture
     )?;
