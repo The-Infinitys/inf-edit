@@ -28,10 +28,8 @@ jobs:
         target: ${{ matrix.target }}
         toolchain: stable # 安定版を使用
 
-    - name: Install cargo-deb and cargo-rpm
-      run: |
-        cargo install cargo-deb --force
-        cargo install cargo-rpm --force
+    - name: Install cargo-deb
+      run: cargo install cargo-deb --force # cargo-debのみインストール
 
     - name: Install cross-compilation tools for aarch64 (if target is aarch64)
       if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -53,27 +51,31 @@ jobs:
         DEB_FILE=$(ls target/${{ matrix.target }}/debian/*.deb)
         echo "deb_file=${DEB_FILE}" >> $GITHUB_OUTPUT
 
-    - name: Create RPM package for ${{ matrix.target }}
-      id: create_rpm
+    - name: Create Tarball (.tar.gz) for ${{ matrix.target }}
+      id: create_tarball
       run: |
-        # cargo-rpmはデフォルトでtarget/<TARGET>/rpm/your_rust_app-<VERSION>-<RELEASE>.<ARCH>.rpm を生成
-        # --targetを指定して、対象のビルドパスを見るようにする
-        cargo rpm --target ${{ matrix.target }}
-        # 生成されたrpmファイル名を特定
-        RPM_FILE=$(ls target/${{ matrix.target }}/rpm/*.rpm)
-        echo "rpm_file=${RPM_FILE}" >> $GITHUB_OUTPUT
+        BINARY_NAME="inf-edit" # Cargo.tomlのnameフィールドと同じ名前にしてください
+        VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//') # vを取り除く
+        if [ -z "$VERSION" ]; then
+          VERSION="latest" # releaseブランチ直接の場合、バージョンがないのでlatestとする
+        fi
+        TAR_FILE="${BINARY_NAME}-${VERSION}-${{ matrix.target }}.tar.gz"
+        mkdir -p dist/${{ matrix.target }}
+        cp target/${{ matrix.target }}/release/${BINARY_NAME} dist/${{ matrix.target }}/
+        tar -czvf ${TAR_FILE} -C dist/${{ matrix.target }}/ ${BINARY_NAME}
+        echo "tar_file=${TAR_FILE}" >> $GITHUB_OUTPUT
 
     - name: Upload DEB package artifact (${{ matrix.target }})
       uses: actions/upload-artifact@v4
       with:
-        name: your_rust_app-deb-${{ matrix.target }}
+        name: inf-edit-deb-${{ matrix.target }}
         path: ${{ steps.create_deb.outputs.deb_file }}
 
-    - name: Upload RPM package artifact (${{ matrix.target }})
+    - name: Upload Tarball artifact (${{ matrix.target }})
       uses: actions/upload-artifact@v4
       with:
-        name: your_rust_app-rpm-${{ matrix.target }}
-        path: ${{ steps.create_rpm.outputs.rpm_file }}
+        name: inf-edit-tar-${{ matrix.target }}
+        path: ${{ steps.create_tarball.outputs.tar_file }}
 
   create_github_release:
     needs: build_and_package # パッケージのビルドが完了してから実行
@@ -91,12 +93,14 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.sha }} # SHAをタグ名にするか、手動でタグを切る（推奨）
+          # リリース名とタグ名を設定
+          # releaseブランチへのプッシュがトリガーなので、SHAをタグ名に含める
+          tag_name: release-${{ github.sha }}
           name: Release ${{ github.ref_name }}-${{ github.sha }}
           body: |
-            This release includes DEB and RPM packages for Linux (x86_64 and aarch64).
+            This release includes DEB packages and Tarballs for Linux (x86_64 and aarch64).
           files: |
             artifacts/**/*.deb # ダウンロードしたdebファイルをすべて添付
-            artifacts/**/*.rpm # ダウンロードしたrpmファイルをすべて添付
+            artifacts/**/*.tar.gz # ダウンロードしたtar.gzファイルをすべて添付
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # リリース作成のためのトークン
