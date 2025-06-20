@@ -5,12 +5,12 @@ use ratatui::{
 };
 
 pub struct SecondarySideBar {
-    is_active: bool,
+    _is_active: bool, // Prefixed to silence warning, assuming it might be used later
 }
 
 impl SecondarySideBar {
     pub fn new(is_active: bool) -> Self {
-        Self { is_active }
+        Self { _is_active: is_active }
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {

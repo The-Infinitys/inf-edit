@@ -2,13 +2,11 @@ use std::{time::SystemTime, process::Command};
 use chrono::{Local, DateTime};
 use ratatui::{
     Frame,
-    layout::{Rect, Constraint, Layout, Direction},
+    layout::{Rect},
     style::{Style, Color},
     text::{Line, Span},
     widgets::{Paragraph},
 };
-
-
 
 
 pub struct StatusBar {
