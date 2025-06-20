@@ -20,7 +20,7 @@ jobs:
 
     - name: Create archive
       run: |
-        BINARY_NAME="your_rust_app" # 実際のバイナリ名に置き換える
+        BINARY_NAME="inf-edit" # 実際のバイナリ名に置き換える
         VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//') # タグ名からvを取り除く
         TAR_FILE="${BINARY_NAME}-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
         mkdir -p dist
