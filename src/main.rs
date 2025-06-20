@@ -13,13 +13,13 @@ use ratatui::{
 use std::time::Duration;
 use std::{env, io, rc::Rc};
 
+use inf_edit::ActiveTarget;
+use inf_edit::Tab;
+use inf_edit::components::status::StatusBar;
 use inf_edit::components::{
     editor::Editor, file_view::FileView, main_widget::MainWidget, panel::Panel,
     primary_sidebar::PrimarySideBar, secondary_sidebar::SecondarySideBar, term::Term,
 };
-use inf_edit::components::status::StatusBar;
-use inf_edit::Tab;
-use inf_edit::ActiveTarget;
 
 struct App {
     show_file_view: bool,
@@ -41,7 +41,6 @@ impl App {
             editors: vec![Tab {
                 content: inf_edit::components::editor::Editor::new(), // Assuming Editor is also part of the lib
                 title: "Editor 1".to_string(),
-                
             }],
             terminals: vec![],
             active_editor_tab: 0,
@@ -61,9 +60,7 @@ fn main() -> Result<()> {
 
     let mut app = App::new();
     let mut f_view = FileView::new(env::current_dir()?);
-    let status_bar = StatusBar::new( // status_bar no longer needs to be mutable
-        "Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル Ctrl+N:新規エディタタブ Ctrl+T:タブ切替 ...",
-    );
+    let status_bar = StatusBar::new();
     loop {
         terminal.draw(|f| {
             let layout = Layout::default()
@@ -87,19 +84,26 @@ fn main() -> Result<()> {
             // The main_area will be used for the new layout.
 
             // New Layout: PrimarySidebar | MainWidget (Editor Tabs + Editor) | SecondarySidebar
-            // Panel (Terminal + Terminal Tabs) will be conditionally rendered within one of these, 
+            // Panel (Terminal + Terminal Tabs) will be conditionally rendered within one of these,
             // but for now, we will render it on top of everything by checking a flag.
-
 
             // For now, let's assume Panel is toggled and might take over the MainWidget area or a portion of it.
 
             let outer_layout = if app.show_file_view {
                 Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([Constraint::Length(30), Constraint::Min(1), Constraint::Length(30)]) // Primary, Main, Secondary
+                    .constraints([
+                        Constraint::Length(30),
+                        Constraint::Min(1),
+                        Constraint::Length(30),
+                    ]) // Primary, Main, Secondary
                     .split(main_area)
             } else {
-                Rc::from(vec![Rect::new(0,0,0,0), main_area, Rect::new(0,0,0,0)]) // No Primary or Secondary if file_view is hidden
+                Rc::from(vec![
+                    Rect::new(0, 0, 0, 0),
+                    main_area,
+                    Rect::new(0, 0, 0, 0),
+                ]) // No Primary or Secondary if file_view is hidden
             };
 
             let primary_sidebar_area = outer_layout[0];
@@ -110,7 +114,10 @@ fn main() -> Result<()> {
             if app.show_file_view {
                 let mut primary_sidebar = PrimarySideBar::new(
                     &mut f_view,
-                    matches!(app.active_target, ActiveTarget::FileView | ActiveTarget::PrimarySideBar)
+                    matches!(
+                        app.active_target,
+                        ActiveTarget::FileView | ActiveTarget::PrimarySideBar
+                    ),
                 );
                 primary_sidebar.render(f, primary_sidebar_area);
             }
@@ -126,20 +133,18 @@ fn main() -> Result<()> {
                 panel.render(f, main_widget_area);
             } else if !app.editors.is_empty() {
                 // Otherwise, MainWidget (editor) takes the area
-                let mut main_widget = MainWidget::new(
-                    &mut app.editors,
-                    app.active_editor_tab,
-                    app.active_target,
-                );
+                let mut main_widget =
+                    MainWidget::new(&mut app.editors, app.active_editor_tab, app.active_target);
                 main_widget.render(f, main_widget_area);
             }
 
             // Render SecondarySideBar
             // For now, show SecondarySideBar if FileView is shown.
             if app.show_file_view {
-                let secondary_sidebar = SecondarySideBar::new(
-                    matches!(app.active_target, ActiveTarget::SecondarySideBar)
-                );
+                let secondary_sidebar = SecondarySideBar::new(matches!(
+                    app.active_target,
+                    ActiveTarget::SecondarySideBar
+                ));
                 secondary_sidebar.render(f, secondary_sidebar_area);
             }
 
@@ -187,13 +192,13 @@ fn main() -> Result<()> {
                     continue;
                 }
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                    if app.active_target == ActiveTarget::Panel { // Was Term
+                    if app.active_target == ActiveTarget::Panel {
+                        // Was Term
                         app.show_panel = false; // Was show_term
                         // If hiding panel, focus should go to editor if available
                         if !app.editors.is_empty() {
                             app.active_target = ActiveTarget::Editor;
                         } // Potentially else to FileView if no editors
-                        
                     } else {
                         if app.terminals.is_empty() {
                             app.terminals.push(Tab {
@@ -221,7 +226,8 @@ fn main() -> Result<()> {
                 }
                 // ctrl+k でターゲット切り替え（ターミナルが開いているときのみ）
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {
-                    if app.show_panel { // Was show_term
+                    if app.show_panel {
+                        // Was show_term
                         match app.active_target {
                             ActiveTarget::Editor => {
                                 // If panel is visible and editor is active, switch to panel
@@ -229,12 +235,13 @@ fn main() -> Result<()> {
                                     app.active_target = ActiveTarget::Panel; // Was Term
                                 }
                             }
-                            ActiveTarget::Panel => { // Was Term
+                            ActiveTarget::Panel => {
+                                // Was Term
                                 // If editor tabs exist, switch to editor
                                 if !app.editors.is_empty() {
                                     app.active_target = ActiveTarget::Editor;
                                 } else if app.show_file_view {
-                                     // If no editors but file view is shown, switch to file view
+                                    // If no editors but file view is shown, switch to file view
                                     app.active_target = ActiveTarget::FileView;
                                 }
                             }
@@ -270,9 +277,13 @@ fn main() -> Result<()> {
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('t') {
                     if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
                         app.active_editor_tab = (app.active_editor_tab + 1) % app.editors.len();
-                    } else if app.active_target == inf_edit::ActiveTarget::Panel && !app.terminals.is_empty() { // Match Panel for terminal tabs
+                    } else if app.active_target == inf_edit::ActiveTarget::Panel
+                        && !app.terminals.is_empty()
+                    {
+                        // Match Panel for terminal tabs
                         // If Panel is active, switch terminal tabs
-                         app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
+                        app.active_terminal_tab =
+                            (app.active_terminal_tab + 1) % app.terminals.len();
                     }
                     continue;
                 }
@@ -305,7 +316,8 @@ fn main() -> Result<()> {
                             }
                         }
                     }
-                    ActiveTarget::Panel => { // Was Term
+                    ActiveTarget::Panel => {
+                        // Was Term
                         if let Some(active_terminal_tab) =
                             app.terminals.get_mut(app.active_terminal_tab)
                         {
@@ -350,15 +362,20 @@ fn main() -> Result<()> {
                         KeyCode::Backspace | KeyCode::Char('h') => f_view.back(),
                         _ => {}
                     },
-                    ActiveTarget::SecondarySideBar => { /* Handle SecondarySideBar specific keys if any */ },
-                    ActiveTarget::Term => { /* This case might be unreachable if Term always means Panel is active */ }
+                    ActiveTarget::SecondarySideBar => { /* Handle SecondarySideBar specific keys if any */
+                    }
+                    ActiveTarget::Term => { /* This case might be unreachable if Term always means Panel is active */
+                    }
                 }
             }
         }
 
         // ターミナルプロセスの終了監視 (Ensure active_terminal_tab is valid before indexing)
-        if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() { // Was Term
-            if app.active_terminal_tab < app.terminals.len() && app.terminals[app.active_terminal_tab].content.is_dead() {
+        if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() {
+            // Was Term
+            if app.active_terminal_tab < app.terminals.len()
+                && app.terminals[app.active_terminal_tab].content.is_dead()
+            {
                 // If the active terminal died, switch focus to editor.
                 // Optionally, could remove the dead terminal tab here.
                 app.active_target = ActiveTarget::Editor;
