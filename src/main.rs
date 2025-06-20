@@ -29,6 +29,7 @@ struct App {
     show_file_view: bool,
     show_term: bool,
     active_target: ActiveTarget,
+    term: Term,
 }
 
 impl App {
@@ -37,6 +38,7 @@ impl App {
             show_file_view: true,
             show_term: false,
             active_target: ActiveTarget::Editor,
+            term: Term::new(), // Initialize Term instance here
         }
     }
 }
@@ -49,7 +51,7 @@ fn main() -> Result<(), io::Error> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-    let mut term = Term::new();
+    // let mut term = Term::new(); // Term is now part of App
     let mut editor = Editor::new();
     let mut f_view = FileView::new(env::current_dir()?);
     let status = StatusBar::new("Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル ...");
@@ -122,7 +124,7 @@ fn main() -> Result<(), io::Error> {
                     } else {
                         Style::default()
                     });
-                term.render_with_block(f, right_chunks[1], term_block);
+                app.term.render_with_block(f, right_chunks[1], term_block);
             }
 
             // ステータスバーの描画
@@ -153,11 +155,14 @@ fn main() -> Result<(), io::Error> {
                     continue;
                 }
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                    if app.show_term {
+                    if app.show_term { // If terminal is currently shown, hide it
                         app.show_term = false;
                         app.active_target = ActiveTarget::Editor;
-                    } else {
-                        term = Term::new(); // 新しいインスタンスを生成
+                    } else { // If terminal is currently hidden, show it
+                        // If the existing terminal process is dead, create a new one.
+                        if app.term.is_dead() {
+                            app.term = Term::new();
+                        }
                         app.show_term = true;
                         app.active_target = ActiveTarget::Term;
                     }
@@ -200,19 +205,19 @@ fn main() -> Result<(), io::Error> {
                         KeyCode::Char(c) => {
                             if key.modifiers.contains(KeyModifiers::CONTROL) {
                                 let ctrl = (c as u8) & 0x1f;
-                                term.send_input(&[ctrl]);
+                                app.term.send_input(&[ctrl]);
                             } else {
-                                term.send_input(c.to_string().as_bytes());
+                                app.term.send_input(c.to_string().as_bytes());
                             }
                         }
-                        KeyCode::Enter => term.send_input(b"\n"),
-                        KeyCode::Tab => term.send_input(b"\t"),
-                        KeyCode::Backspace => term.send_input(&[8]),
-                        KeyCode::Left => term.send_input(b"\x1b[D"),
-                        KeyCode::Right => term.send_input(b"\x1b[C"),
-                        KeyCode::Up => term.send_input(b"\x1b[A"),
-                        KeyCode::Down => term.send_input(b"\x1b[B"),
-                        KeyCode::Esc => term.send_input(b"\x1b"),
+                        KeyCode::Enter => app.term.send_input(b"\n"),
+                        KeyCode::Tab => app.term.send_input(b"\t"),
+                        KeyCode::Backspace => app.term.send_input(&[8]),
+                        KeyCode::Left => app.term.send_input(b"\x1b[D"),
+                        KeyCode::Right => app.term.send_input(b"\x1b[C"),
+                        KeyCode::Up => app.term.send_input(b"\x1b[A"),
+                        KeyCode::Down => app.term.send_input(b"\x1b[B"),
+                        KeyCode::Esc => app.term.send_input(b"\x1b"),
                         _ => {}
                     },
                     ActiveTarget::FileView => {
@@ -239,7 +244,7 @@ fn main() -> Result<(), io::Error> {
 
         // ターミナルプロセスの終了監視
         if app.show_term {
-            if term.is_dead() {
+            if app.term.is_dead() {
                 app.show_term = false;
                 app.active_target = ActiveTarget::Editor;
             }
