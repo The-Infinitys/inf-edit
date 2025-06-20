@@ -1,0 +1,41 @@
+name: Release Rust Binary
+
+on:
+  push:
+    branches: ["release"]
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest # LinuxターゲットなのでUbuntuを指定
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable # Rustのツールチェインをセットアップ
+
+    - name: Build release binary
+      run: cargo build --release --target x86_64-unknown-linux-gnu # リリースビルドを実行。ターゲットを指定
+
+    - name: Create archive
+      run: |
+        BINARY_NAME="your_rust_app" # 実際のバイナリ名に置き換える
+        VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//') # タグ名からvを取り除く
+        TAR_FILE="${BINARY_NAME}-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+        mkdir -p dist
+        cp target/x86_64-unknown-linux-gnu/release/${BINARY_NAME} dist/
+        tar -czvf ${TAR_FILE} -C dist/ ${BINARY_NAME} # バイナリをtar.gzに圧縮
+
+    - name: Upload to GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          *.tar.gz # 作成したtar.gzファイルをリリースに添付
+        tag_name: ${{ github.ref }}
+        name: Release ${{ github.ref_name }}
+        body: |
+          - **${{ github.ref_name }}**
+          - Linux (x86_64) binary
+        prerelease: false # プレリリースとして公開する場合はtrue
