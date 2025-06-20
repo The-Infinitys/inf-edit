@@ -7,7 +7,6 @@ use ratatui::{
     Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
 };
 use std::{env, rc::Rc};
 use std::{io, time::Duration};
@@ -19,27 +18,42 @@ mod components {
 }
 use components::{editor::Editor, file_view::FileView, term::Term};
 use inf_edit::components::status::StatusBar;
+
+#[derive(PartialEq)]
 enum ActiveTarget {
     Editor,
     Term,
     FileView,
 }
 
+struct Tab<T> {
+    content: T,
+    title: String,
+}
+
 struct App {
     show_file_view: bool,
     show_term: bool,
     active_target: ActiveTarget,
-    term: Term,
+    term: Term, // legacy, can be removed after refactor
+    editors: Vec<Tab<Editor>>,
+    terminals: Vec<Tab<Term>>,
+    active_editor_tab: usize,
+    active_terminal_tab: usize,
 }
 
 impl App {
-    fn new() -> Self {
-        Self {
+    fn new() -> Result<Self, io::Error> {
+        Ok(Self {
             show_file_view: true,
             show_term: false,
             active_target: ActiveTarget::Editor,
-            term: Term::new(), // Initialize Term instance here
-        }
+            term: Term::new(),
+            editors: vec![Tab { content: Editor::new(), title: "Editor 1".to_string() }],
+            terminals: vec![],
+            active_editor_tab: 0,
+            active_terminal_tab: 0,
+        })
     }
 }
 
@@ -50,27 +64,55 @@ fn main() -> Result<(), io::Error> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new();
-    // let mut term = Term::new(); // Term is now part of App
-    let mut editor = Editor::new();
+    let mut app = App::new()?;
     let mut f_view = FileView::new(env::current_dir()?);
-    let status = StatusBar::new("Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル ...");
+    let status = StatusBar::new("Ctrl+Q:終了 Ctrl+B:ファイルビュー Ctrl+J:ターミナル Ctrl+N:新規エディタタブ Ctrl+T:タブ切替 ...");
     loop {
         terminal.draw(|f| {
-            // let size = f.area();
-
-            // レイアウトの定義
             let layout = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Min(1),           // メイン画面
-                    Constraint::Length(1),        // ステータスバー
+                    Constraint::Length(1), // タブバー用
+                    Constraint::Min(1),
+                    Constraint::Length(1),
                 ])
                 .split(f.area());
-            let main_area = layout[0];
-            let status_area = layout[1];
+            let tabbar_area = layout[0];
+            let main_area = layout[1];
+            let status_area = layout[2];
 
-            // 左側: file_view, 右側: editor(上), term(下)
+            // タブバーの描画
+            use ratatui::widgets::{Block, Borders, Tabs};
+            use ratatui::text::{Span, Line}; // ← Spans ではなく Line を使う
+
+            // EditorタブとTerminalタブのタイトルを作成
+            let editor_titles: Vec<Line> = app.editors.iter().enumerate().map(|(i, tab)| {
+                let mut title = tab.title.clone();
+                if i == app.active_editor_tab && app.active_target == ActiveTarget::Editor {
+                    title = format!("*{}", title);
+                }
+                Line::from(Span::raw(title))
+            }).collect();
+
+            let terminal_titles: Vec<Line> = app.terminals.iter().enumerate().map(|(i, tab)| {
+                let mut title = tab.title.clone();
+                if i == app.active_terminal_tab && app.active_target == ActiveTarget::Term {
+                    title = format!("*{}", title);
+                }
+                Line::from(Span::raw(title))
+            }).collect();
+
+            // Tabsウィジェットでタブバーを描画
+            let mut all_titles = editor_titles;
+            if !terminal_titles.is_empty() {
+                all_titles.push(Line::from(Span::raw(" | ")));
+                all_titles.extend(terminal_titles);
+            }
+            let tabs = Tabs::new(all_titles)
+                .block(Block::default().borders(Borders::BOTTOM).title("Tabs"))
+                .highlight_style(ratatui::style::Style::default().fg(ratatui::style::Color::Green));
+            f.render_widget(tabs, tabbar_area);
+
             let chunks = if app.show_file_view {
                 Layout::default()
                     .direction(Direction::Horizontal)
@@ -80,8 +122,7 @@ fn main() -> Result<(), io::Error> {
                 Rc::from(vec![Rect::new(0, 0, 0, 0), main_area])
             };
 
-            // 右側を上下分割
-            let right_chunks = if app.show_term {
+            let right_chunks = if app.show_term && !app.terminals.is_empty() && app.active_target == ActiveTarget::Term {
                 Layout::default()
                     .direction(Direction::Vertical)
                     .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
@@ -100,35 +141,29 @@ fn main() -> Result<(), io::Error> {
             }
 
             // editor
-            let editor_block = ratatui::widgets::Block::default()
-                .title("Editor")
-                .borders(ratatui::widgets::Borders::ALL)
-                .border_style(if matches!(app.active_target, ActiveTarget::Editor) {
-                    Style::default()
-                        .fg(Color::Green)
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default()
-                });
-            editor.render_with_block(f, right_chunks[0], editor_block);
-
-            // term
-            if app.show_term {
-                let term_block = ratatui::widgets::Block::default()
-                    .title("Terminal")
-                    .borders(ratatui::widgets::Borders::ALL)
-                    .border_style(if matches!(app.active_target, ActiveTarget::Term) {
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default()
-                    });
-                app.term.render_with_block(f, right_chunks[1], term_block);
+            if !app.editors.is_empty() {
+                let editor_block = ratatui::widgets::Block::default();
+                if let Some(active_editor_tab) = app.editors.get_mut(app.active_editor_tab) {
+                    active_editor_tab.content.render_with_block(f, right_chunks[0], editor_block);
+                }
             }
 
-            // ステータスバーの描画
-            status.render(f, status_area);
+            // term
+            if app.show_term && !app.terminals.is_empty() {
+                if let Some(active_terminal_tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                    let term_block = ratatui::widgets::Block::default();
+                    active_terminal_tab.content.render_with_block(f, right_chunks[1], term_block);
+                }
+            }
+
+            // termフィールドの利用例（例: ステータスバーにプロセス状態表示）
+            let term_status = if app.term.is_dead() {
+                "Term: Dead"
+            } else {
+                "Term: Alive"
+            };
+            let status_with_term = format!("{} | {}", status.message, term_status); // ← .text → .message に修正
+            StatusBar::new(&status_with_term).render(f, status_area);
         })?;
 
         // イベント処理
@@ -138,13 +173,12 @@ fn main() -> Result<(), io::Error> {
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('q') {
                     break;
                 }
-                // ctrl+c で終了（不要なら削除可）
+                // ctrl+c で終了
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c') {
                     break;
                 }
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('b') {
                     app.show_file_view = !app.show_file_view;
-                    // file_viewを開いたときはFileViewをアクティブに、閉じたらEditorをアクティブに
                     app.active_target = if app.show_file_view {
                         ActiveTarget::FileView
                     } else if app.show_term {
@@ -155,13 +189,18 @@ fn main() -> Result<(), io::Error> {
                     continue;
                 }
                 if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                    if app.show_term { // If terminal is currently shown, hide it
+                    if app.active_target == ActiveTarget::Term {
                         app.show_term = false;
                         app.active_target = ActiveTarget::Editor;
-                    } else { // If terminal is currently hidden, show it
-                        // If the existing terminal process is dead, create a new one.
-                        if app.term.is_dead() {
-                            app.term = Term::new();
+                    } else {
+                        if app.terminals.is_empty() {
+                            app.terminals.push(Tab { content: Term::new(), title: format!("Term {}", app.terminals.len() + 1) });
+                            app.active_terminal_tab = app.terminals.len() - 1;
+                        } else {
+                            if app.terminals[app.active_terminal_tab].content.is_dead() {
+                                app.terminals[app.active_terminal_tab].content = Term::new();
+                            }
+                            app.active_terminal_tab = app.active_terminal_tab.min(app.terminals.len().saturating_sub(1));
                         }
                         app.show_term = true;
                         app.active_target = ActiveTarget::Term;
@@ -176,59 +215,93 @@ fn main() -> Result<(), io::Error> {
                             ActiveTarget::Term => ActiveTarget::Editor,
                             ActiveTarget::FileView => ActiveTarget::FileView,
                         };
+                        if app.active_target == ActiveTarget::Editor {
+                            if !app.terminals.is_empty() {
+                                app.active_target = ActiveTarget::Term;
+                            }
+                        } else if app.active_target == ActiveTarget::Term {
+                            if !app.editors.is_empty() {
+                                app.active_target = ActiveTarget::Editor;
+                            }
+                        }
+                    }
+                    continue;
+                }
+                // Ctrl+N for new editor tab
+                if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('n') {
+                    app.editors.push(Tab { content: Editor::new(), title: format!("Editor {}", app.editors.len() + 1) });
+                    app.active_editor_tab = app.editors.len() - 1;
+                    app.active_target = ActiveTarget::Editor;
+                    app.show_term = false;
+                    continue;
+                }
+                // Ctrl+T to switch tabs
+                if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('t') {
+                    if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
+                        app.active_editor_tab = (app.active_editor_tab + 1) % app.editors.len();
+                    } else if app.active_target == ActiveTarget::Term && !app.terminals.is_empty() {
+                        app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
                     }
                     continue;
                 }
 
                 // アクティブなターゲットに応じてキー入力を送信
                 match app.active_target {
-                    ActiveTarget::Editor => match key.code {
-                        KeyCode::Char(c) => {
-                            if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                let ctrl = (c as u8) & 0x1f;
-                                editor.send_input(&[ctrl]);
-                            } else {
-                                editor.send_input(c.to_string().as_bytes());
+                    ActiveTarget::Editor => {
+                        if let Some(active_editor_tab) = app.editors.get_mut(app.active_editor_tab) {
+                            match key.code {
+                                KeyCode::Char(c) => {
+                                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                        let ctrl = (c as u8) & 0x1f;
+                                        active_editor_tab.content.send_input(&[ctrl]);
+                                    } else {
+                                        active_editor_tab.content.send_input(c.to_string().as_bytes());
+                                    }
+                                }
+                                KeyCode::Enter => active_editor_tab.content.send_input(b"\n"),
+                                KeyCode::Tab => active_editor_tab.content.send_input(b"\t"),
+                                KeyCode::Backspace => active_editor_tab.content.send_input(&[8]),
+                                KeyCode::Left => active_editor_tab.content.send_input(b"\x1b[D"),
+                                KeyCode::Right => active_editor_tab.content.send_input(b"\x1b[C"),
+                                KeyCode::Up => active_editor_tab.content.send_input(b"\x1b[A"),
+                                KeyCode::Down => active_editor_tab.content.send_input(b"\x1b[B"),
+                                KeyCode::Esc => active_editor_tab.content.send_input(b"\x1b"),
+                                _ => {}
                             }
                         }
-                        KeyCode::Enter => editor.send_input(b"\n"),
-                        KeyCode::Tab => editor.send_input(b"\t"),
-                        KeyCode::Backspace => editor.send_input(&[8]),
-                        KeyCode::Left => editor.send_input(b"\x1b[D"),
-                        KeyCode::Right => editor.send_input(b"\x1b[C"),
-                        KeyCode::Up => editor.send_input(b"\x1b[A"),
-                        KeyCode::Down => editor.send_input(b"\x1b[B"),
-                        KeyCode::Esc => editor.send_input(b"\x1b"),
-                        _ => {}
-                    },
-                    ActiveTarget::Term => match key.code {
-                        KeyCode::Char(c) => {
-                            if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                let ctrl = (c as u8) & 0x1f;
-                                app.term.send_input(&[ctrl]);
-                            } else {
-                                app.term.send_input(c.to_string().as_bytes());
+                    }
+                    ActiveTarget::Term => {
+                        if let Some(active_terminal_tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                            match key.code {
+                                KeyCode::Char(c) => {
+                                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                        let ctrl = (c as u8) & 0x1f;
+                                        active_terminal_tab.content.send_input(&[ctrl]);
+                                    } else {
+                                        active_terminal_tab.content.send_input(c.to_string().as_bytes());
+                                    }
+                                }
+                                KeyCode::Enter => active_terminal_tab.content.send_input(b"\n"),
+                                KeyCode::Tab => active_terminal_tab.content.send_input(b"\t"),
+                                KeyCode::Backspace => active_terminal_tab.content.send_input(&[8]),
+                                KeyCode::Left => active_terminal_tab.content.send_input(b"\x1b[D"),
+                                KeyCode::Right => active_terminal_tab.content.send_input(b"\x1b[C"),
+                                KeyCode::Up => active_terminal_tab.content.send_input(b"\x1b[A"),
+                                KeyCode::Down => active_terminal_tab.content.send_input(b"\x1b[B"),
+                                KeyCode::Esc => active_terminal_tab.content.send_input(b"\x1b"),
+                                _ => {}
                             }
                         }
-                        KeyCode::Enter => app.term.send_input(b"\n"),
-                        KeyCode::Tab => app.term.send_input(b"\t"),
-                        KeyCode::Backspace => app.term.send_input(&[8]),
-                        KeyCode::Left => app.term.send_input(b"\x1b[D"),
-                        KeyCode::Right => app.term.send_input(b"\x1b[C"),
-                        KeyCode::Up => app.term.send_input(b"\x1b[A"),
-                        KeyCode::Down => app.term.send_input(b"\x1b[B"),
-                        KeyCode::Esc => app.term.send_input(b"\x1b"),
-                        _ => {}
-                    },
+                    }
                     ActiveTarget::FileView => {
-                        // ファイルビューの操作例
                         match key.code {
                             KeyCode::Down | KeyCode::Char('j') => f_view.next(),
                             KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
                             KeyCode::Enter => {
                                 if let Some(file) = f_view.selected_file() {
-                                    // editorでファイルを開く
-                                    editor.open_file(file);
+                                    if let Some(active_editor_tab) = app.editors.get_mut(app.active_editor_tab) {
+                                        active_editor_tab.content.open_file(file);
+                                    }
                                     app.active_target = ActiveTarget::Editor;
                                 } else {
                                     f_view.enter();
@@ -243,9 +316,8 @@ fn main() -> Result<(), io::Error> {
         }
 
         // ターミナルプロセスの終了監視
-        if app.show_term {
-            if app.term.is_dead() {
-                app.show_term = false;
+        if app.active_target == ActiveTarget::Term && !app.terminals.is_empty() {
+            if app.terminals[app.active_terminal_tab].content.is_dead() {
                 app.active_target = ActiveTarget::Editor;
             }
         }
