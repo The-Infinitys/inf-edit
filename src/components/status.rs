@@ -52,7 +52,7 @@ impl StatusBar {
     fn get_resource_usage(&self) -> String {
         // This is a placeholder. In a real application, you'd use a crate like `sysinfo`
         // to get actual CPU and memory usage.
-        
+
         "CPU: 25% Mem: 60%".to_string()
     }
 

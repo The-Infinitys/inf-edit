@@ -1,9 +1,5 @@
 use super::file_view::FileView;
-use ratatui::{
-    layout::Rect,
-    widgets::{Block},
-    Frame,
-};
+use ratatui::{Frame, layout::Rect, widgets::Block};
 
 pub struct PrimarySideBar<'a> {
     file_view: &'a mut FileView,
@@ -12,7 +8,10 @@ pub struct PrimarySideBar<'a> {
 
 impl<'a> PrimarySideBar<'a> {
     pub fn new(file_view: &'a mut FileView, is_active: bool) -> Self {
-        Self { file_view, is_active }
+        Self {
+            file_view,
+            is_active,
+        }
     }
 
     pub fn render(&mut self, f: &mut Frame, area: Rect) {

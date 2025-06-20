@@ -7,13 +7,13 @@ use ratatui::{
 use std::rc::Rc;
 
 use crate::{
-    app::App,
-    components::{
-        file_view::FileView, main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar,
-        secondary_sidebar::SecondarySideBar,
-    },
     ActiveTarget,
+    app::App,
     components::status::StatusBar,
+    components::{
+        file_view::FileView, main_widget::MainWidget, panel::Panel,
+        primary_sidebar::PrimarySideBar, secondary_sidebar::SecondarySideBar,
+    },
 };
 
 pub fn draw(

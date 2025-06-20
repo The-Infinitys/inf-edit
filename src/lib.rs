@@ -1,7 +1,7 @@
-pub mod components;
-pub mod ui;
 pub mod app;
+pub mod components;
 pub mod event_handler;
+pub mod ui;
 #[derive(PartialEq, Clone, Copy, Debug)] // Added Clone, Copy, Debug for convenience
 pub enum ActiveTarget {
     Editor,

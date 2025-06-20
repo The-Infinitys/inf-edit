@@ -3,9 +3,9 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::time::Duration;
 
 use crate::{
+    ActiveTarget, Tab,
     app::App,
     components::{editor::Editor, file_view::FileView, term::Term},
-    ActiveTarget, Tab,
 };
 
 pub enum AppEvent {
@@ -42,7 +42,8 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                     app.show_panel = false;
                     if !app.editors.is_empty() {
                         app.active_target = ActiveTarget::Editor;
-                    } else if app.show_file_view { // If no editors, fall back to file view if visible
+                    } else if app.show_file_view {
+                        // If no editors, fall back to file view if visible
                         app.active_target = ActiveTarget::FileView;
                     }
                 } else {
@@ -74,8 +75,11 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             }
 
             // New Terminal Tab (Ctrl+Shift+J)
-            if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                && key.code == KeyCode::Char('j') // Changed 'u' back to 'j' as per original intent
+            if key
+                .modifiers
+                .contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+                && key.code == KeyCode::Char('j')
+            // Changed 'u' back to 'j' as per original intent
             {
                 app.terminals.push(Tab {
                     content: Term::new()?,
@@ -141,14 +145,20 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             }
 
             // Switch Terminal Tabs (Ctrl+Shift+Left/Right) - Only when Panel is active
-            if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() && key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT) {
+            if app.active_target == ActiveTarget::Panel
+                && !app.terminals.is_empty()
+                && key
+                    .modifiers
+                    .contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+            {
                 match key.code {
                     KeyCode::Left => {
                         app.active_terminal_tab = app.active_terminal_tab.saturating_sub(1);
                         return Ok(AppEvent::Continue);
                     }
                     KeyCode::Right => {
-                        app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
+                        app.active_terminal_tab =
+                            (app.active_terminal_tab + 1) % app.terminals.len();
                         return Ok(AppEvent::Continue);
                     }
                     _ => {}
@@ -173,7 +183,7 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                 }
                 ActiveTarget::Panel => {
                     if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
-                         match key.code {
+                        match key.code {
                             KeyCode::Char(c) => tab.content.send_input(c.to_string().as_bytes()),
                             KeyCode::Enter => tab.content.send_input(b"\n"),
                             KeyCode::Tab => tab.content.send_input(b"\t"),

@@ -1,9 +1,9 @@
 use ratatui::{
-    layout::{Rect, Constraint, Layout, Direction, Alignment},
-    style::{Style, Color},
-    text::{Line, Text},
-    widgets::{Paragraph, Block, Borders},
     Frame,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    text::{Line, Text},
+    widgets::{Block, Borders, Paragraph},
 };
 
 pub struct HelpWidget {
@@ -28,7 +28,7 @@ impl HelpWidget {
     pub fn render(&self, f: &mut Frame, app_area: Rect) {
         if self.is_visible {
             let popup_height = 10u16; // Desired popup height
-            let popup_width = 50u16;  // Desired popup width
+            let popup_width = 50u16; // Desired popup width
 
             let vertical_margin = (app_area.height.saturating_sub(popup_height)) / 2;
             let horizontal_margin = (app_area.width.saturating_sub(popup_width)) / 2;

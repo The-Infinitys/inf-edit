@@ -128,11 +128,7 @@ impl FileView {
             self.back();
             return;
         }
-        let idx = if self.show_parent_entry() {
-            self.selected
-        } else {
-            self.selected
-        };
+        let idx = self.selected;
         if let Some(path) = self.entries.get(idx) {
             if path.is_dir() {
                 self.history.push((self.root.clone(), self.selected));
@@ -154,11 +150,7 @@ impl FileView {
 
     /// 選択中のファイルパスを返す（ファイルのみ）
     pub fn selected_file(&self) -> Option<PathBuf> {
-        let idx = if self.show_parent_entry() {
-            self.selected
-        } else {
-            self.selected
-        };
+        let idx = self.selected;
         self.entries
             .get(idx)
             .and_then(|p| if p.is_file() { Some(p.clone()) } else { None })

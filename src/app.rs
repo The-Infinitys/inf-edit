@@ -1,6 +1,6 @@
 use crate::{
-    components::{editor::Editor, help_widget::HelpWidget, term::Term},
     ActiveTarget, Tab,
+    components::{editor::Editor, help_widget::HelpWidget, term::Term},
 };
 
 pub struct App {

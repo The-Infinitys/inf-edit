@@ -1,9 +1,9 @@
 pub mod editor;
 pub mod file_view;
-pub mod status;
-pub mod term;
+pub mod help_widget;
+pub mod main_widget;
+pub mod panel;
 pub mod primary_sidebar;
 pub mod secondary_sidebar;
-pub mod panel;
-pub mod main_widget;
-pub mod help_widget;
+pub mod status;
+pub mod term;
