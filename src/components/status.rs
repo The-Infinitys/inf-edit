@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    widgets::{Block, Borders, Paragraph},
+    widgets::Paragraph,
     text::Line,
 };
 
@@ -19,8 +19,7 @@ impl StatusBar {
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {
-        let paragraph = Paragraph::new(Line::from(self.message.clone()))
-            .block(Block::default().borders(Borders::TOP));
+        let paragraph = Paragraph::new(Line::from(self.message.clone()));
         f.render_widget(paragraph, area);
     }
 }

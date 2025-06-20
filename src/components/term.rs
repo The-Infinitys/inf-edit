@@ -5,11 +5,14 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
 use tui_term::widget::PseudoTerminal;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{Ordering};
 
 pub struct Term {
     parser: Arc<Mutex<Parser>>,
     writer: Arc<Mutex<Box<dyn Write + Send>>>, // 追加
     _pty: Box<dyn MasterPty + Send>,           // 保持しておくことでdropされないように
+    dead: Arc<AtomicBool>, // ← 追加
 }
 
 impl Default for Term {
@@ -41,15 +44,18 @@ impl Term {
 
         // vt100パーサ
         let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
+        let dead = Arc::new(AtomicBool::new(false)); // ← ここで毎回新規
 
         // PTYからの出力をパーサに流し込むスレッド
         {
             let parser = Arc::clone(&parser);
             let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
+            let dead_clone = dead.clone();
             thread::spawn(move || {
                 let mut buf = [0u8; 4096];
                 while let Ok(n) = reader.read(&mut buf) {
                     if n == 0 {
+                        dead_clone.store(true, Ordering::SeqCst);
                         break;
                     }
                     let mut parser = parser.lock().unwrap();
@@ -65,9 +71,9 @@ impl Term {
             parser,
             writer, // 追加
             _pty: pty_pair.master,
+            dead, // ← 追加
         }
     }
-
 
     pub fn send_input(&self, input: &[u8]) {
         if let Ok(mut writer) = self.writer.lock() {
@@ -105,9 +111,6 @@ impl Term {
 
     /// プロセスが終了しているか
     pub fn is_dead(&self) -> bool {
-        // portable-ptyのmasterに対してis_eof()などがあれば使う
-        // なければ、parserの内容や独自フラグで判定
-        // ここでは簡易的に
-        false // 実装例: 必要に応じてプロセス監視を追加
+        self.dead.load(Ordering::SeqCst)
     }
 }
