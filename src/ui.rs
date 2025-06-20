@@ -4,15 +4,13 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
 };
-use std::rc::Rc;
 
 use crate::{
     ActiveTarget,
     app::App,
     components::status::StatusBar,
     components::{
-        file_view::FileView, main_widget::MainWidget, panel::Panel,
-        primary_sidebar::PrimarySideBar, secondary_sidebar::SecondarySideBar,
+        file_view::FileView, main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar,
     },
 };
 
@@ -23,41 +21,69 @@ pub fn draw(
     status_bar: &StatusBar,
 ) -> Result<()> {
     terminal.draw(|f| {
-        let layout = Layout::default()
+        let frame_area = f.area();
+
+        // 1. Overall Vertical Split: Main Content Area | Status Bar Area
+        let main_vertical_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),    // Main content area
-                Constraint::Length(1), // Status bar
+                Constraint::Min(0),    // Main Content Area (takes remaining space)
+                Constraint::Length(1), // Status Bar Area (fixed height)
             ])
-            .split(f.area());
-        let main_area = layout[0];
-        let status_area = layout[1];
+            .split(frame_area);
 
-        // New Layout: PrimarySidebar | MainWidget (Editor Tabs + Editor) | SecondarySideBar
-        // Panel (Terminal + Terminal Tabs) will be conditionally rendered within one of these,
-        // or as an overlay on top of everything else.
+        let main_content_area = main_vertical_layout[0];
+        let status_area = main_vertical_layout[1];
 
-        let outer_layout = if app.show_file_view {
-            Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([
-                    Constraint::Length(30), // Primary Sidebar width
-                    Constraint::Min(1),     // Main Widget / Panel area
-                    Constraint::Length(30), // Secondary Sidebar width
-                ])
-                .split(main_area)
+        // 2. Main Content Horizontal Split: (Primary Sidebar) | Center Area | (Secondary Sidebar)
+        let mut horizontal_constraints = Vec::new();
+        if app.show_file_view {
+            horizontal_constraints.push(Constraint::Length(30)); // Primary Sidebar width
+        }
+        horizontal_constraints.push(Constraint::Min(0)); // Center Area (takes remaining space)
+        if app.secondary_sidebar.is_visible {
+            horizontal_constraints.push(Constraint::Length(30)); // Secondary Sidebar width
+        }
+
+        let main_horizontal_layout_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(horizontal_constraints)
+            .split(main_content_area);
+
+        // Assign areas based on visibility and the generated chunks
+        let mut current_chunk_index = 0;
+
+        let primary_sidebar_area = if app.show_file_view {
+            let area = main_horizontal_layout_chunks[current_chunk_index]; // Primary is the first chunk if visible
+            current_chunk_index += 1; // Move index past primary
+            area
         } else {
-            // If file view is hidden, Primary and Secondary sidebars are not shown
-            Rc::from(vec![
-                Rect::new(0, 0, 0, 0), // Primary Sidebar (zero width)
-                main_area,             // Main Widget / Panel takes full width
-                Rect::new(0, 0, 0, 0), // Secondary Sidebar (zero width)
-            ])
+            Rect::new(0, 0, 0, 0) // Zero area if not shown
         };
 
-        let primary_sidebar_area = outer_layout[0];
-        let main_widget_area = outer_layout[1];
-        let secondary_sidebar_area = outer_layout[2];
+        let center_area = main_horizontal_layout_chunks[current_chunk_index]; // Center is the next chunk
+        current_chunk_index += 1; // Move index past center
+
+        // The secondary sidebar area is the last chunk if visible.
+        let secondary_sidebar_area = if app.secondary_sidebar.is_visible {
+            // Secondary is the next chunk if visible
+            // Use get() with bounds check just in case, though with Min(0) in the middle, it should be the last chunk if visible.
+            main_horizontal_layout_chunks[current_chunk_index]
+        } else {
+            Rect::new(0, 0, 0, 0) // Zero area if not shown
+        };
+
+        // 3. Center Area Vertical Split: Main Widget Area | (Panel Area)
+        let mut center_vertical_constraints = Vec::new();
+        center_vertical_constraints.push(Constraint::Min(0)); // Main Widget Area (takes remaining space)
+        if app.show_panel {
+            center_vertical_constraints.push(Constraint::Percentage(33)); // Panel Area (~1/3 of center height)
+        }
+
+        let center_vertical_layout_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(center_vertical_constraints)
+            .split(center_area);
 
         // Render PrimarySideBar (FileView)
         if app.show_file_view {
@@ -77,57 +103,39 @@ pub fn draw(
             primary_sidebar.render(f, primary_sidebar_area);
         }
 
-        // Render MainWidget (Editor Tabs + Editor) OR Panel (Terminal + Terminal Tabs)
-        // Panel is rendered if app.show_panel is true AND there are terminal tabs.
-        // Otherwise, MainWidget (editor) is rendered if there are editor tabs.
+        // Render SecondarySideBar
+        if app.secondary_sidebar.is_visible {
+            app.secondary_sidebar.render(f, secondary_sidebar_area);
+        }
+
+        // Assign Main Widget and Panel areas from the center vertical split
+        let main_widget_area = center_vertical_layout_chunks[0]; // Main widget is always the first chunk in the center split
+        let panel_area = if app.show_panel {
+            center_vertical_layout_chunks[1] // Panel is the second chunk if visible
+        } else {
+            Rect::new(0, 0, 0, 0) // Zero area if not shown
+        };
+
+        // Render MainWidget (Editor Tabs + Active Editor)
+        if !app.editors.is_empty() {
+            MainWidget::new(&mut app.editors, app.active_editor_tab, app.active_target)
+                .render(f, main_widget_area);
+        }
+
+        // Render the Panel
         if app.show_panel && !app.terminals.is_empty() {
-            // If panel is shown, it takes the main_widget_area
             let mut panel = Panel::new(
                 &mut app.terminals,
                 app.active_terminal_tab,
                 app.active_target,
             );
-            // Example: Apply active style if Panel is focused
-            // let block = if app.active_target == ActiveTarget::Panel {
-            //     Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Green))
-            // } else {
-            //     Block::default().borders(Borders::ALL)
-            // };
-            panel.render(f, main_widget_area);
-        } else if !app.editors.is_empty() {
-            // Otherwise, MainWidget (editor) takes the area
-            let mut main_widget =
-                MainWidget::new(&mut app.editors, app.active_editor_tab, app.active_target);
-            main_widget.render(f, main_widget_area);
-        } else {
-            // No editors and no panel to show in the main area.
-            // Render a placeholder or welcome message.
-            // use ratatui::widgets::{Paragraph, Block, Borders};
-            // let placeholder = Paragraph::new("No editors or terminals open.\nCtrl+N for new editor.\nCtrl+Shift+J for new terminal.")
-            //     .block(Block::default().title("Welcome").borders(Borders::ALL));
-            // f.render_widget(placeholder, main_widget_area);
-            // Handle case where no editors and no terminals are open/shown
-            // Could render a welcome message or empty state
-        }
-
-        // Render SecondarySideBar
-        // For now, show SecondarySideBar if FileView is shown.
-        if app.show_file_view {
-            let secondary_sidebar =
-                SecondarySideBar::new(matches!(app.active_target, ActiveTarget::SecondarySideBar));
-            // Example: Apply active style if SecondarySideBar is focused
-            // let block = if app.active_target == ActiveTarget::SecondarySideBar {
-            //     Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Green))
-            // } else {
-            //     Block::default().borders(Borders::ALL)
-            // };
-            secondary_sidebar.render(f, secondary_sidebar_area);
+            panel.render(f, panel_area);
         }
 
         // Render the status bar at the bottom
         status_bar.render(f, status_area);
 
-        // Render Help widget on top, if visible.
+        // Render Help widget on top, if visible. It needs the full frame area to calculate its centered position.
         // It needs the full frame area to calculate its centered position.
         app.help_widget.render(f, f.area());
     })?;
