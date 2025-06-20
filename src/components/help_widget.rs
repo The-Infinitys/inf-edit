@@ -21,32 +21,39 @@ impl HelpWidget {
 
     pub fn render(&self, f: &mut Frame, app_area: Rect) {
         if self.is_visible {
-            // Calculate position for centered popup
-            let popup_area = Layout::default()
+            let popup_height = 10u16; // Desired popup height
+            let popup_width = 50u16;  // Desired popup width
+
+            let vertical_margin = (app_area.height.saturating_sub(popup_height)) / 2;
+            let horizontal_margin = (app_area.width.saturating_sub(popup_width)) / 2;
+
+            let popup_layout = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Percentage(30),
-                    Constraint::Length(10), // Popup height
-                    Constraint::Percentage(30), // Adjusted to make it centered better with 10 height
+                    Constraint::Length(vertical_margin),
+                    Constraint::Length(popup_height),
+                    Constraint::Length(vertical_margin),
                 ])
-                .split(app_area)[1];
+                .split(app_area);
 
             let popup_area = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
-                    Constraint::Percentage(20),
-                    Constraint::Length(50), // Popup width
-                    Constraint::Percentage(30), // Adjusted
+                    Constraint::Length(horizontal_margin),
+                    Constraint::Length(popup_width),
+                    Constraint::Length(horizontal_margin),
                 ])
-                .split(popup_area)[1];
+                .split(popup_layout[1])[1]; // Apply horizontal layout to the middle vertical chunk
 
             let help_text = Text::from(vec![
                 Line::from("Ctrl+Q: Quit"),
                 Line::from("Ctrl+B: Toggle File View"),
-                Line::from("Ctrl+J: Toggle Terminal Panel"),
+                Line::from("Ctrl+J: Toggle/Focus Terminal Panel"),
+                Line::from("Ctrl+Shift+J: New Terminal Tab"),
                 Line::from("Ctrl+K: Switch Editor/Panel Focus"),
                 Line::from("Ctrl+N: New Editor Tab"),
                 Line::from("Ctrl+T: Switch Active Tab (Editor/Panel)"),
+                Line::from("Ctrl+Shift+Left/Right: Switch Terminal Tabs (when Panel active)"),
                 Line::from("Ctrl+H: Toggle Help (this)"),
             ]);
 

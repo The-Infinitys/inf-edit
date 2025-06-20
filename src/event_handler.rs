@@ -70,6 +70,22 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                 return Ok(AppEvent::Continue);
             }
 
+            // New Terminal Tab (Ctrl+Shift+J)
+            // if key.modifiers == KeyModifiers::CONTROL | KeyModifiers::SHIFT
+            //     && key.code == KeyCode::Char('j')
+            if key.modifiers == KeyModifiers::CONTROL | KeyModifiers::SHIFT
+                && key.code == KeyCode::Char('u')
+            {
+                app.terminals.push(Tab {
+                    content: Term::new()?,
+                    title: format!("Term {}", app.terminals.len() + 1),
+                });
+                app.active_terminal_tab = app.terminals.len() - 1;
+                app.active_target = ActiveTarget::Panel; // Focus the new terminal panel
+                app.show_panel = true; // Ensure panel is visible
+                return Ok(AppEvent::Continue);
+            }
+
             // Switch focus (Ctrl+K)
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {
                 if app.show_panel {
@@ -121,6 +137,23 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                     app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
                 }
                 return Ok(AppEvent::Continue);
+            }
+
+            // Switch Terminal Tabs (Ctrl+Shift+Left/Right) - Only when Panel is active
+            if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() {
+                if key.modifiers == KeyModifiers::CONTROL | KeyModifiers::SHIFT {
+                    match key.code {
+                        KeyCode::Left => {
+                            app.active_terminal_tab = app.active_terminal_tab.saturating_sub(1);
+                            return Ok(AppEvent::Continue);
+                        }
+                        KeyCode::Right => {
+                            app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
+                            return Ok(AppEvent::Continue);
+                        }
+                        _ => {}
+                    }
+                }
             }
 
             // Component-specific key handling
