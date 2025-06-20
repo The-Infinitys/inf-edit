@@ -1,27 +1,21 @@
 use anyhow::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use inf_edit::components::help_widget::HelpWidget; // Updated import path
+ // Updated import path
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Rect},
 };
-use std::time::Duration;
-use std::{env, io, rc::Rc};
+use std::{env, io};
 use inf_edit::event_handler;
 use inf_edit::ui;
 
 use inf_edit::ActiveTarget;
-use inf_edit::Tab;
 use inf_edit::components::status::StatusBar;
-use inf_edit::components::{
-    editor::Editor, file_view::FileView, main_widget::MainWidget, panel::Panel,
-    primary_sidebar::PrimarySideBar, secondary_sidebar::SecondarySideBar, term::Term,
-};
+use inf_edit::components::file_view::FileView;
 
 
 use inf_edit::app::App;
