@@ -43,7 +43,7 @@ cargo run --release
 
 ## スクリーンショット
 
-（ここにスクリーンショットを貼ってください）
+![inf-edit](./inf-edit.png)
 
 ## ライセンス
 
