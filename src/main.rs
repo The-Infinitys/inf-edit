@@ -61,10 +61,10 @@ fn main() -> Result<(), io::Error> {
             let right_chunks = if app.show_term {
                 Layout::default()
                     .direction(Direction::Vertical)
-                    .constraints([Constraint::Min(10), Constraint::Length(10)].as_ref())
+                    .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
                     .split(chunks[1])
             } else {
-               Rc::from([chunks[1], Rect::new(0, 0, 0, 0)])
+                Rc::from([chunks[1], Rect::new(0, 0, 0, 0)])
             };
 
             // file_view
@@ -102,8 +102,14 @@ fn main() -> Result<(), io::Error> {
                 if editor_is_active {
                     match key.code {
                         KeyCode::Char(c) => {
-                            // 日本語なども含めUTF-8で送る
-                            editor.send_input(c.to_string().as_bytes());
+                            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                // Ctrl+A～Ctrl+ZはASCII 1～26
+                                let ctrl = (c as u8) & 0x1f;
+                                editor.send_input(&[ctrl]);
+                            } else {
+                                // 通常の文字
+                                editor.send_input(c.to_string().as_bytes());
+                            }
                         }
                         KeyCode::Enter => editor.send_input(b"\n"),
                         KeyCode::Tab => editor.send_input(b"\t"),
