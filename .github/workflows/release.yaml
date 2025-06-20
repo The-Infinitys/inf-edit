@@ -16,7 +16,7 @@ jobs:
       matrix:
         target:
           - x86_64-unknown-linux-gnu # AMD64
-          - aarch64-unknown-linux-gnu # ARM64
+          # - aarch64-unknown-linux-gnu # ARM64
 
     steps:
     - name: Checkout code
