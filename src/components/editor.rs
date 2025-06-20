@@ -98,8 +98,56 @@ impl Editor {
         let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
         f.render_widget(pseudo_term, area);
         let (cur_y, cur_x) = parser.screen().cursor_position(); // vt100は(1,1)始まり
-        let cursor_x = area.x + cur_x.saturating_sub(1);
-        let cursor_y = area.y + cur_y.saturating_sub(1);
+        let cursor_x = area.x + cur_x.saturating_add(1);
+        let cursor_y = area.y + cur_y.saturating_add(1);
         f.set_cursor_position((cursor_x, cursor_y));
+    }
+
+    /// ファイルを開く
+    pub fn open_file(&mut self, path: std::path::PathBuf) {
+        // 新しいPTYとプロセスを作成
+        let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+        let pty_system = native_pty_system();
+        let pty_pair = pty_system
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .expect("Failed to open PTY");
+
+        let mut cmd = CommandBuilder::new(editor);
+        cmd.arg(path);
+        let _child = pty_pair
+            .slave
+            .spawn_command(cmd)
+            .expect("Failed to spawn editor");
+
+        let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
+        let writer = Arc::new(Mutex::new(
+            pty_pair.master.take_writer().expect("clone writer"),
+        ));
+
+        // PTYからの出力をパーサに流し込むスレッド
+        {
+            let parser = Arc::clone(&parser);
+            let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
+            thread::spawn(move || {
+                let mut buf = [0u8; 4096];
+                while let Ok(n) = reader.read(&mut buf) {
+                    if n == 0 {
+                        break;
+                    }
+                    let mut parser = parser.lock().unwrap();
+                    parser.process(&buf[..n]);
+                }
+            });
+        }
+
+        // 新しいリソースで上書き
+        self.parser = parser;
+        self.writer = writer;
+        self._pty = pty_pair.master;
     }
 }

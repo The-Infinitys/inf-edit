@@ -22,6 +22,7 @@ use components::{editor::Editor, file_view::FileView, term::Term};
 enum ActiveTarget {
     Editor,
     Term,
+    FileView,
 }
 
 struct App {
@@ -50,7 +51,7 @@ fn main() -> Result<(), io::Error> {
     let mut app = App::new();
     let mut term = Term::new();
     let mut editor = Editor::new();
-    let f_view=FileView::new(env::current_dir()?);
+    let mut f_view = FileView::new(env::current_dir()?);
 
     loop {
         terminal.draw(|f| {
@@ -140,6 +141,7 @@ fn main() -> Result<(), io::Error> {
                         app.active_target = match app.active_target {
                             ActiveTarget::Editor => ActiveTarget::Term,
                             ActiveTarget::Term => ActiveTarget::Editor,
+                            ActiveTarget::FileView => ActiveTarget::FileView,
                         };
                     }
                     continue;
@@ -185,6 +187,24 @@ fn main() -> Result<(), io::Error> {
                         KeyCode::Esc => term.send_input(b"\x1b"),
                         _ => {}
                     },
+                    ActiveTarget::FileView => {
+                        // ファイルビューの操作例
+                        match key.code {
+                            KeyCode::Down | KeyCode::Char('j') => f_view.next(),
+                            KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
+                            KeyCode::Enter => {
+                                if let Some(file) = f_view.selected_file() {
+                                    // editorでファイルを開く
+                                    editor.open_file(file);
+                                    app.active_target = ActiveTarget::Editor;
+                                } else {
+                                    f_view.enter();
+                                }
+                            }
+                            KeyCode::Backspace | KeyCode::Char('h') => f_view.back(),
+                            _ => {}
+                        }
+                    }
                 }
             }
         }
