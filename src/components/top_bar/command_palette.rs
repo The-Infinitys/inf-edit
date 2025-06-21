@@ -3,19 +3,22 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, List, ListItem},
 };
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::fs;
 use unicode_segmentation::UnicodeSegmentation;
 
-#[derive(Default)]
+pub enum PaletteMode {
+    Command,
+    File,
+}
+
 pub struct CommandPalette {
     pub input: String,
     pub cursor_grapheme: usize,
-    pub show: bool,
-    pub commands: Vec<String>,
-    pub command_selected: usize,
+    pub mode: PaletteMode,
+    pub command_candidates: Vec<String>,
     pub file_candidates: Vec<String>,
-    pub file_selected: usize,
+    pub selected: usize,
 }
 
 pub enum CommandPaletteEvent {
@@ -27,15 +30,20 @@ pub enum CommandPaletteEvent {
 
 impl CommandPalette {
     pub fn new() -> Self {
+        let commands = vec![
+            ">workbench.action.files.newUntitledFile".to_string(),
+            ">workbench.action.files.openFile".to_string(),
+            ">workbench.action.files.save".to_string(),
+            ">workbench.action.closeActiveEditor".to_string(),
+            ">workbench.action.quickOpen".to_string(),
+        ];
         Self {
-            commands: vec![
-                ">workbench.action.files.newUntitledFile".to_string(),
-                ">workbench.action.files.openFile".to_string(),
-                ">workbench.action.files.save".to_string(),
-                ">workbench.action.closeActiveEditor".to_string(),
-                ">workbench.action.quickOpen".to_string(),
-            ],
-            ..Default::default()
+            input: String::new(),
+            cursor_grapheme: 0,
+            mode: PaletteMode::Command,
+            command_candidates: commands,
+            file_candidates: Vec::new(),
+            selected: 0,
         }
     }
 
@@ -55,7 +63,7 @@ impl CommandPalette {
                 }
                 self.input = new_input;
                 self.cursor_grapheme += 1;
-                self.update_candidates();
+                self.update_mode_and_candidates();
                 CommandPaletteEvent::None
             }
             KeyCode::Backspace => {
@@ -71,7 +79,7 @@ impl CommandPalette {
                     }
                     self.input = new_input;
                     self.cursor_grapheme -= 1;
-                    self.update_candidates();
+                    self.update_mode_and_candidates();
                 }
                 CommandPaletteEvent::None
             }
@@ -84,29 +92,33 @@ impl CommandPalette {
                 CommandPaletteEvent::None
             }
             KeyCode::Down => {
-                if self.input.starts_with('>') {
-                    self.command_selected = (self.command_selected + 1).min(self.filtered_commands().len().saturating_sub(1));
-                } else {
-                    self.file_selected = (self.file_selected + 1).min(self.file_candidates.len().saturating_sub(1));
+                let max = match self.mode {
+                    PaletteMode::Command => self.command_candidates.len(),
+                    PaletteMode::File => self.file_candidates.len(),
+                };
+                if max > 0 {
+                    self.selected = (self.selected + 1).min(max - 1);
                 }
                 CommandPaletteEvent::None
             }
             KeyCode::Up => {
-                if self.input.starts_with('>') {
-                    self.command_selected = self.command_selected.saturating_sub(1);
-                } else {
-                    self.file_selected = self.file_selected.saturating_sub(1);
+                if self.selected > 0 {
+                    self.selected -= 1;
                 }
                 CommandPaletteEvent::None
             }
             KeyCode::Enter => {
-                if self.input.starts_with('>') {
-                    let cmds = self.filtered_commands();
-                    if let Some(cmd) = cmds.get(self.command_selected) {
-                        return CommandPaletteEvent::ExecuteCommand(cmd.clone());
+                match self.mode {
+                    PaletteMode::Command => {
+                        if let Some(cmd) = self.command_candidates.get(self.selected) {
+                            return CommandPaletteEvent::ExecuteCommand(cmd.clone());
+                        }
                     }
-                } else if let Some(file) = self.file_candidates.get(self.file_selected) {
-                    return CommandPaletteEvent::OpenFile(file.clone());
+                    PaletteMode::File => {
+                        if let Some(file) = self.file_candidates.get(self.selected) {
+                            return CommandPaletteEvent::OpenFile(file.clone());
+                        }
+                    }
                 }
                 CommandPaletteEvent::None
             }
@@ -114,25 +126,23 @@ impl CommandPalette {
         }
     }
 
-    fn filtered_commands(&self) -> Vec<String> {
-        let q = self.input.trim_start_matches('>');
-        self.commands
-            .iter()
-            .filter(|c| {
-                if q.is_empty() {
-                    true
-                } else {
-                    c.to_lowercase().contains(&q.to_lowercase())
-                }
-            })
-            .cloned()
-            .collect()
-    }
-
-    fn update_candidates(&mut self) {
+    fn update_mode_and_candidates(&mut self) {
         if self.input.starts_with('>') {
-            self.command_selected = 0;
+            self.mode = PaletteMode::Command;
+            let q = self.input.trim_start_matches('>').to_lowercase();
+            self.command_candidates = vec![
+                ">workbench.action.files.newUntitledFile".to_string(),
+                ">workbench.action.files.openFile".to_string(),
+                ">workbench.action.files.save".to_string(),
+                ">workbench.action.closeActiveEditor".to_string(),
+                ">workbench.action.quickOpen".to_string(),
+            ]
+            .into_iter()
+            .filter(|c| q.is_empty() || c.to_lowercase().contains(&q))
+            .collect();
+            self.selected = 0;
         } else {
+            self.mode = PaletteMode::File;
             let q = self.input.as_str();
             let mut files = Vec::new();
             if let Ok(entries) = fs::read_dir(".") {
@@ -144,7 +154,7 @@ impl CommandPalette {
                 }
             }
             self.file_candidates = files;
-            self.file_selected = 0;
+            self.selected = 0;
         }
     }
 
@@ -168,36 +178,23 @@ impl CommandPalette {
             height: area.height.saturating_sub(3),
         };
 
-        if self.input.starts_with('>') {
-            let cmds = self.filtered_commands();
-            let items: Vec<ListItem> = cmds
-                .iter()
-                .enumerate()
-                .map(|(i, c)| {
-                    if i == self.command_selected {
-                        ListItem::new(c.clone()).style(Style::default().fg(Color::Yellow))
-                    } else {
-                        ListItem::new(c.clone())
-                    }
-                })
-                .collect();
-            let list = List::new(items).block(Block::default().borders(Borders::NONE));
-            f.render_widget(list, list_area);
-        } else if !self.input.is_empty() {
-            let items: Vec<ListItem> = self
-                .file_candidates
-                .iter()
-                .enumerate()
-                .map(|(i, name)| {
-                    if i == self.file_selected {
-                        ListItem::new(name.clone()).style(Style::default().fg(Color::Green))
-                    } else {
-                        ListItem::new(name.clone())
-                    }
-                })
-                .collect();
-            let list = List::new(items).block(Block::default().borders(Borders::NONE));
-            f.render_widget(list, list_area);
-        }
+        let items: Vec<ListItem> = match self.mode {
+            PaletteMode::Command => self.command_candidates.iter().enumerate().map(|(i, c)| {
+                if i == self.selected {
+                    ListItem::new(c.clone()).style(Style::default().fg(Color::Yellow))
+                } else {
+                    ListItem::new(c.clone())
+                }
+            }).collect(),
+            PaletteMode::File => self.file_candidates.iter().enumerate().map(|(i, name)| {
+                if i == self.selected {
+                    ListItem::new(name.clone()).style(Style::default().fg(Color::Green))
+                } else {
+                    ListItem::new(name.clone())
+                }
+            }).collect(),
+        };
+        let list = List::new(items).block(Block::default().borders(Borders::NONE));
+        f.render_widget(list, list_area);
     }
 }
