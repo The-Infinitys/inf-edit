@@ -101,9 +101,12 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT) && key.code == KeyCode::Char('b') {
                 let mut help_is_now_visible = false;
                 if let Some(tab) = app.secondary_sidebar_components.get_mut(app.active_secondary_sidebar_tab) {
-                    if let SecondarySidebarComponent::Help(help_widget) = &mut tab.content {
-                        help_is_now_visible = help_widget.toggle_visibility(); // Get the new state
-                    }
+                    // The compiler warns this is an irrefutable pattern because the secondary sidebar
+                    // currently only ever contains a Help widget. Using `let` is more direct.
+                    // If other component types are added later, this will become a compile error,
+                    // prompting a necessary change back to `if let` or `match`.
+                    let SecondarySidebarComponent::Help(help_widget) = &mut tab.content;
+                    help_is_now_visible = help_widget.toggle_visibility(); // Get the new state
                 }
 
                 if help_is_now_visible {
