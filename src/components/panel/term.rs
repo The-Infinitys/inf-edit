@@ -83,8 +83,8 @@ impl Term {
     ) {
         // The area for the terminal content is inside the block's borders.
         let inner_area = block.inner(area);
-        let rows = inner_area.height;
-        let cols = inner_area.width;
+        let rows = inner_area.height.max(1); // Ensure at least 1 row
+        let cols = inner_area.width.max(1);   // Ensure at least 1 col
 
         {
             let mut parser = self.parser.lock().unwrap();

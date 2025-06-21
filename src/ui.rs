@@ -31,10 +31,10 @@ pub fn draw(
                 Constraint::Length(1), // Status Bar Area (fixed height)
             ])
             .split(frame_area);
-        let top_bar_area = main_vertical_layout[0];
 
-        let main_content_area = main_vertical_layout[0];
-        let status_area = main_vertical_layout[1];
+        let top_bar_area = main_vertical_layout[0];
+        let main_content_area = main_vertical_layout[1];
+        let status_area = main_vertical_layout[2];
 
         // 2. Main Content Horizontal Split: (Primary Sidebar) | Center Area | (Secondary Sidebar)
         const TABS_WIDTH: u16 = 12;

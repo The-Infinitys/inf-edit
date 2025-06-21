@@ -83,8 +83,8 @@ impl Editor {
     ) {
         // The area for the terminal content is inside the block's borders.
         let inner_area = block.inner(area);
-        let rows = inner_area.height;
-        let cols = inner_area.width;
+        let rows = inner_area.height.max(1); // Ensure at least 1 row
+        let cols = inner_area.width.max(1);   // Ensure at least 1 col
 
         {
             let mut parser = self.parser.lock().unwrap();
@@ -102,7 +102,7 @@ impl Editor {
         f.render_widget(pseudo_term, area);
         let (cur_y, cur_x) = parser.screen().cursor_position(); // This is 1-based (y, x)
         let cursor_x = inner_area.x + cur_x;
-        let cursor_y = inner_area.y + cur_y;
+        let cursor_y = inner_area.y + cur_y.saturating_sub(1);
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
