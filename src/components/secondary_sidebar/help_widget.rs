@@ -30,6 +30,7 @@ impl HelpWidget {
                 ListItem::new("Ctrl+K: Switch Focus"),
                 ListItem::new("Ctrl+N: New Tab (Editor/Terminal based on focus)"),
                 // Ctrl+Shift+N removed due to Konsole conflict
+                ListItem::new("Ctrl+P: Toggle Command Palette"),
                 ListItem::new("Alt+H / Alt+L: Prev/Next Editor/Terminal Tab"),
                 ListItem::new("Ctrl+W: Close Active Tab"),
                 ListItem::new("Ctrl+Shift+Up/Down: Prev/Next Terminal Tab"),

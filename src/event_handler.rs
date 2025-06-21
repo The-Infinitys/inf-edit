@@ -26,6 +26,17 @@ pub enum AppEvent {
 pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
         if let Event::Key(key) = event::read()? {
+            // If command palette is active, route all keys to it
+            if app.show_command_palette {
+                if key.code == KeyCode::Esc {
+                    app.show_command_palette = false; // Close command palette on Esc
+                } else {
+                    app.command_palette.handle_key(key);
+                }
+                return Ok(AppEvent::Continue);
+            }
+
+
             // --- Check for dead processes and remove tabs ---
             // Editors
             if !app.editors.is_empty() && app.editors[app.active_editor_tab].content.is_dead() {
@@ -207,6 +218,12 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                     app.show_panel = true;
                 }
 
+                return Ok(AppEvent::Continue);
+            }
+
+            // Toggle Command Palette (Ctrl+P)
+            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('p') {
+                app.show_command_palette = !app.show_command_palette;
                 return Ok(AppEvent::Continue);
             }
 

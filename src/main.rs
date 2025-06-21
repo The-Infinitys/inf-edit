@@ -9,9 +9,8 @@ use inf_edit::event_handler;
 use inf_edit::ui;
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
-
-use inf_edit::ActiveTarget;
 use inf_edit::components::bottom_bar::BottomBar;
+use inf_edit::ActiveTarget;
 
 use inf_edit::app::App;
 

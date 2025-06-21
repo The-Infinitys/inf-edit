@@ -9,8 +9,8 @@ use crate::{
     ActiveTarget,
     app::App,
     components::{
-        main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar,
-        secondary_sidebar::SecondarySideBar, bottom_bar::BottomBar, top_bar::TopBar, // Directly import BottomBar and TopBar
+        main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar, secondary_sidebar::SecondarySideBar,
+        bottom_bar::BottomBar, top_bar::TopBar,
     },
 };
 
@@ -177,11 +177,11 @@ pub fn draw(
         }
 
         // Render the Top Bar
-        let top_bar = TopBar::new();
+        let mut top_bar = TopBar::new();
         let active_editor_title = app.editors.get(app.active_editor_tab)
             .map(|tab| tab.title.as_str())
             .unwrap_or("No Editor Open");
-        top_bar.render(f, top_bar_area, app.active_target == ActiveTarget::Editor, active_editor_title);
+        top_bar.render(f, top_bar_area, app.active_target == ActiveTarget::Editor, active_editor_title, &mut app.command_palette, app.show_command_palette);
 
         // Render the Bottom Bar (formerly status bar)
         // Use the instance passed as a parameter

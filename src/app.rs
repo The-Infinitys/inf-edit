@@ -5,11 +5,10 @@ use crate::{
     components::{
         main_widget::editor::Editor,
         panel::term::Term,
-        primary_sidebar::{
-            FileView, component::PrimarySidebarComponent, git::GitWidget, search::SearchWidget,
-        }, // Add git::GitWidget here
-        secondary_sidebar::component::SecondarySidebarComponent,
+        primary_sidebar::{component::PrimarySidebarComponent, search::SearchWidget, FileView, git::GitWidget},
+        top_bar::command_palette::CommandPalette, // Corrected import path
         secondary_sidebar::help_widget::HelpWidget,
+        secondary_sidebar::component::SecondarySidebarComponent,
     },
 };
 
@@ -19,6 +18,8 @@ pub struct App {
     pub show_panel: bool, // Renamed from show_term for clarity with new structure
     pub active_target: ActiveTarget,
     pub editors: Vec<Tab<Editor>>,
+    pub command_palette: CommandPalette, // Added command palette
+    pub show_command_palette: bool,      // Flag to show/hide command palette
     pub terminals: Vec<Tab<Term>>,
     pub primary_sidebar_components: Vec<Tab<PrimarySidebarComponent>>,
     pub secondary_sidebar_components: Vec<Tab<SecondarySidebarComponent>>,
@@ -40,28 +41,30 @@ impl App {
             show_primary_sidebar: true,
             show_secondary_sidebar: false,
             show_panel: false,
+            command_palette: CommandPalette::new(), // Initialize command palette
+            show_command_palette: false,            // Hidden by default
             active_target: ActiveTarget::PrimarySideBar, // Default to PrimarySideBar
             editors: vec![Tab {
                 content: Editor::new(),
                 title: "Editor 1".to_string(),
             }],
             terminals: vec![], // No initial terminals, they are created on demand
-            primary_sidebar_components: vec![
-                Tab {
-                    content: PrimarySidebarComponent::FileView(FileView::new(
-                        env::current_dir().unwrap_or_else(|_| "/".into()),
-                    )),
-                    title: "Explorer".to_string(),
-                },
-                Tab {
-                    content: PrimarySidebarComponent::Search(SearchWidget::new()),
-                    title: "Search".to_string(),
-                },
-                Tab {
-                    content: PrimarySidebarComponent::Git(GitWidget::new()),
-                    title: "Git".to_string(),
-                },
-            ],
+            primary_sidebar_components: vec![Tab {
+                content: PrimarySidebarComponent::FileView(
+                    FileView::new(env::current_dir().unwrap_or_else(|_| "/".into()))
+                ),
+                title: "Explorer".to_string(),
+            },
+            Tab {
+                content: PrimarySidebarComponent::Search(
+                    SearchWidget::new()
+                ),
+                title: "Search".to_string(),
+            },
+            Tab {
+                content: PrimarySidebarComponent::Git(GitWidget::new()),
+                title: "Git".to_string(),
+            }],
             secondary_sidebar_components: vec![Tab {
                 content: SecondarySidebarComponent::Help(HelpWidget::new()),
                 title: "Help".to_string(),
@@ -95,26 +98,12 @@ impl App {
     }
 
     /// Adds a new component to the primary sidebar as a tab.
-    pub fn add_primary_sidebar_component(
-        &mut self,
-        component: PrimarySidebarComponent,
-        title: String,
-    ) {
-        self.primary_sidebar_components.push(Tab {
-            content: component,
-            title,
-        });
+    pub fn add_primary_sidebar_component(&mut self, component: PrimarySidebarComponent, title: String) {
+        self.primary_sidebar_components.push(Tab { content: component, title });
     }
 
     /// Adds a new component to the secondary sidebar as a tab.
-    pub fn add_secondary_sidebar_component(
-        &mut self,
-        component: SecondarySidebarComponent,
-        title: String,
-    ) {
-        self.secondary_sidebar_components.push(Tab {
-            content: component,
-            title,
-        });
+    pub fn add_secondary_sidebar_component(&mut self, component: SecondarySidebarComponent, title: String) {
+        self.secondary_sidebar_components.push(Tab { content: component, title });
     }
 }

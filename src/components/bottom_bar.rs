@@ -1,8 +1,10 @@
-use chrono::{DateTime, Local};
-use colored::*;
-use ratatui::{Frame, layout::Rect, text::Line, widgets::Paragraph};
-use std::{process::Command, time::SystemTime};
-pub struct BottomBar {}
+use ratatui::{layout::{Constraint, Direction, Layout, Rect}, Frame, style::{Style, Color}, widgets::{Block, Borders}};
+pub mod item; // Declare the sub-module
+use self::item::{BottomBarItem, GitInfoItem, CurrentTimeItem, ResourceUsageItem}; // Import from its own sub-module
+
+pub struct BottomBar {
+    items: Vec<Box<dyn BottomBarItem>>,
+}
 
 impl Default for BottomBar {
     fn default() -> Self {
@@ -12,64 +14,44 @@ impl Default for BottomBar {
 
 impl BottomBar {
     pub fn new() -> Self {
-        Self {}
-    }
-
-    fn get_git_info(&self) -> String {
-        let output = Command::new("git")
-            .args(["status", "--porcelain", "--branch"])
-            .output();
-
-        match output {
-            Ok(output) if output.status.success() => {
-                let s = String::from_utf8_lossy(&output.stdout);
-                let lines: Vec<&str> = s.lines().collect();
-                let branch_line = lines
-                    .iter()
-                    .find(|line| line.starts_with("##"))
-                    .unwrap_or(&"");
-                let branch = branch_line.split(" ").nth(1).unwrap_or("No branch info");
-                let changes = lines.len().saturating_sub(1);
-                format!(
-                    "Git: {} ({})",
-                    branch,
-                    if changes > 0 {
-                        format!("{} changes", changes)
-                    } else {
-                        "clean".into()
-                    }
-                )
-            }
-            _ => "Git: Not a git repository or git not found".to_string(),
+        Self {
+            items: vec![
+                Box::new(GitInfoItem::new()),
+                Box::new(CurrentTimeItem::new()),
+                Box::new(ResourceUsageItem::new()),
+            ],
         }
     }
 
-    fn get_current_time(&self) -> String {
-        let now: DateTime<Local> = SystemTime::now().into();
-        now.format("Time: %Y-%m-%d %H:%M:%S").to_string()
-    }
-
-    fn get_resource_usage(&self) -> String {
-        // This is a placeholder. In a real application, you'd use a crate like `sysinfo`
-        // to get actual CPU and memory usage.
-
-        "CPU: 25% Mem: 60%".to_string()
-    }
-
     pub fn render(&self, f: &mut Frame, area: Rect, _is_active: bool) {
-        // Added _is_active for component consistency
-        let git_info = self.get_git_info();
-        let current_time = self.get_current_time();
-        let resource_usage = self.get_resource_usage();
-        let formatted_line = format!(
-            "{:<0} | {:^0} | {:>0}",
-            git_info.red(),
-            current_time.yellow(),
-            resource_usage.green()
-        );
-        let status_line = Line::from(formatted_line);
+        let block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(Color::DarkGray));
+        f.render_widget(&block, area);
 
-        let paragraph = Paragraph::new(status_line);
-        f.render_widget(paragraph, area); // Ensure this renders the paragraph
+        let inner_area = block.inner(area);
+        if inner_area.width == 0 || inner_area.height == 0 {
+            return;
+        }
+
+        let num_items = self.items.len();
+        if num_items == 0 {
+            return;
+        }
+
+        let constraints: Vec<Constraint> = (0..num_items)
+            .map(|_| Constraint::Percentage(100 / num_items as u16))
+            .collect();
+        
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(constraints)
+            .split(inner_area);
+        
+        for (i, item) in self.items.iter().enumerate() {
+            if let Some(chunk_area) = chunks.get(i) {
+                item.render_item(f, *chunk_area);
+            }
+        }
     }
 }
