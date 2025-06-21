@@ -7,6 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem},
 };
 use std::collections::HashSet;
+use crossterm::event::{KeyEvent, KeyCode};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -276,5 +277,33 @@ impl FileView {
                 None
             }
         })
+    }
+
+    pub fn current_path(&self) -> &PathBuf {
+        &self.current_root
+    }
+
+    pub fn handle_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Down | KeyCode::Char('j') => {
+                self.next();
+                true
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                self.previous();
+                true
+            }
+            KeyCode::Enter => {
+                self.enter();
+                // We return true because `enter` on a directory toggles it, which is a handled event.
+                // The event handler will separately check if a file was selected to open it.
+                true
+            }
+            KeyCode::Backspace | KeyCode::Char('h') => {
+                self.back();
+                true
+            }
+            _ => false,
+        }
     }
 }

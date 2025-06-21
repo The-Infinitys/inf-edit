@@ -1,5 +1,6 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use std::env;
 use std::time::{Duration};
 
 use crate::{
@@ -57,17 +58,29 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             // Toggle Panel (Terminal)
             // - If hidden: show and focus.
             // - If visible and focused: hide and focus editor/sidebar.
-            // - If visible and not focused: just focus.
+            // - If visible and not focused: just focus.            
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
+                // Helper to get CWD for new terminals
+                let cwd_for_new_term = app.primary_sidebar_components
+                    .get(app.active_primary_sidebar_tab)
+                    .and_then(|tab| {
+                        if let PrimarySidebarComponent::FileView(fv) = &tab.content {
+                            Some(fv.current_path().clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| env::current_dir().ok());
+
                 if !app.show_panel { // Case 1: Panel is hidden. We want to show it.
                     if app.terminals.is_empty() {
                         // Create the first terminal if none exist.
-                        let term = Term::new()?;
+                        let term = Term::new(cwd_for_new_term)?;
                         app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
                     } else if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
                         if tab.content.is_dead() {
                             // If the active terminal is dead, restart it.
-                            tab.content = Term::new()?;
+                            tab.content = Term::new(cwd_for_new_term)?;
                         }
                     }
                     app.show_panel = true;
@@ -88,7 +101,7 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                         // Before focusing, check if it's dead and restart if needed.
                         if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
                             if tab.content.is_dead() {
-                                tab.content = Term::new()?;
+                                tab.content = Term::new(cwd_for_new_term)?;
                             }
                         }
                         app.active_target = ActiveTarget::Panel;
@@ -125,7 +138,17 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 && key.code == KeyCode::Char('j')
             // Changed 'u' back to 'j' as per original intent
             {
-                let term = Term::new()?;
+                let cwd_for_new_term = app.primary_sidebar_components
+                    .get(app.active_primary_sidebar_tab)
+                    .and_then(|tab| {
+                        if let PrimarySidebarComponent::FileView(fv) = &tab.content {
+                            Some(fv.current_path().clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| env::current_dir().ok());
+                let term = Term::new(cwd_for_new_term)?;
                 app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
                 app.active_target = ActiveTarget::Panel; // Focus the new terminal panel
                 app.show_panel = true; // Ensure panel is visible
@@ -238,24 +261,24 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                         .primary_sidebar_components
                         .get_mut(app.active_primary_sidebar_tab)
                     {
-                        if let PrimarySidebarComponent::FileView(f_view) = &mut tab.content {
-                            // This logic is specific to the FileView and does not use the terminal key sending.
-                            match key.code {
-                                KeyCode::Down | KeyCode::Char('j') => f_view.next(),
-                                KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
-                                KeyCode::Enter => {
-                                    if let Some(path) = f_view.selected_file() {
-                                        let mut editor = Editor::new();
-                                        let title = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                                        editor.open_file(path);
-                                        app.add_editor_tab(editor, title);
-                                    } else {
-                                        f_view.enter();
-                                    }
+                        // Let the active sidebar component handle the key.
+                        let key_handled = tab.content.handle_key(key);
+
+                        // Special handling for FileView's Enter key to open files
+                        if key.code == KeyCode::Enter {
+                            if let PrimarySidebarComponent::FileView(f_view) = &tab.content {
+                                if let Some(path) = f_view.selected_file() {
+                                    // The selected_file() method correctly returns None for directories.
+                                    let mut editor = Editor::new();
+                                    let title = path.to_string_lossy().to_string(); // Full path for title
+                                    editor.open_file(path);
+                                    app.add_editor_tab(editor, title);
+                                    return Ok(AppEvent::Continue);
                                 }
-                                KeyCode::Backspace | KeyCode::Char('h') => f_view.back(),
-                                _ => {}
                             }
+                        }
+                        if key_handled {
+                            return Ok(AppEvent::Continue);
                         }
                     }
                 }

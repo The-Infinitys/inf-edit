@@ -43,7 +43,7 @@ impl App {
                 content: Editor::new(),
                 title: "Editor 1".to_string(),
             }],
-            terminals: vec![],
+            terminals: vec![], // No initial terminals, they are created on demand
             primary_sidebar_components: vec![Tab {
                 content: PrimarySidebarComponent::FileView(
                     FileView::new(env::current_dir().unwrap_or_else(|_| "/".into()))

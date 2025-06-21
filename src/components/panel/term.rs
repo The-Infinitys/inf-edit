@@ -3,6 +3,7 @@ use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use std::env;
 use std::io::{Read, Write};
 use std::sync::atomic::AtomicBool;
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -19,12 +20,12 @@ pub struct Term {
 
 impl Default for Term {
     fn default() -> Self {
-        Self::new().expect("Failed to create default Term") // Or handle error appropriately
+        Self::new(None).expect("Failed to create default Term") // Or handle error appropriately
     }
 }
 
 impl Term {
-    pub fn new() -> Result<Self> {
+    pub fn new(cwd: Option<PathBuf>) -> Result<Self> {
         // Changed to anyhow::Result
         // SHELL取得
         let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
@@ -37,7 +38,10 @@ impl Term {
         })?;
 
         // シェル起動
-        let cmd = CommandBuilder::new(shell);
+        let mut cmd = CommandBuilder::new(shell);
+        if let Some(path) = cwd {
+            cmd.cwd(path);
+        }
         let _child = pty_pair.slave.spawn_command(cmd)?;
 
         // vt100パーサ

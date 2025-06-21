@@ -50,7 +50,7 @@ impl<'a> Panel<'a> {
             } else {
                 Style::default()
             };
-            let content_block = Block::default().borders(Borders::ALL).border_style(border_style);
+            let content_block = Block::default().borders(Borders::ALL).border_style(border_style).title("Terminal"); // Added title for clarity
             active_term_tab.content.render_with_block(f, area, content_block);
         }
     }
