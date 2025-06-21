@@ -38,19 +38,17 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 if !app.show_primary_sidebar {
                     app.show_primary_sidebar = true;
                     app.active_target = ActiveTarget::PrimarySideBar;
-                } else {
-                    if app.active_target == ActiveTarget::PrimarySideBar {
-                        app.show_primary_sidebar = false;
-                        app.active_target = if !app.editors.is_empty() {
-                            ActiveTarget::Editor
-                        } else if app.show_panel {
-                            ActiveTarget::Panel
-                        } else {
-                            ActiveTarget::Editor // Fallback
-                        };
+                } else if app.active_target == ActiveTarget::PrimarySideBar {
+                    app.show_primary_sidebar = false;
+                    app.active_target = if !app.editors.is_empty() {
+                        ActiveTarget::Editor
+                    } else if app.show_panel {
+                        ActiveTarget::Panel
                     } else {
-                        app.active_target = ActiveTarget::PrimarySideBar;
-                    }
+                        ActiveTarget::Editor // Fallback
+                    };
+                } else {
+                    app.active_target = ActiveTarget::PrimarySideBar;
                 }
                 return Ok(AppEvent::Continue);
             }
