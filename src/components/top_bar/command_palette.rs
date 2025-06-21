@@ -6,11 +6,18 @@ use ratatui::{
 };
 use crossterm::event::{KeyCode, KeyEvent};
 use std::fs;
+use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation;
 
 pub enum PaletteMode {
     Command,
     File,
+}
+
+pub struct Command {
+    pub name: String,
+    pub explain: String,
+    pub func: Option<Box<dyn FnMut(&mut CommandPalette) + Send>>,
 }
 
 pub struct CommandPalette {
@@ -20,6 +27,17 @@ pub struct CommandPalette {
     pub command_candidates: Vec<String>,
     pub file_candidates: Vec<String>,
     pub selected: usize,
+    pub commands: HashMap<String, Command>,
+    pub input_mode: Option<InputMode>,
+    pub input_buffer: String,
+    pub selection_items: Vec<String>,
+    pub check_items: Vec<(String, bool)>,
+}
+
+pub enum InputMode {
+    StringInput { prompt: String },
+    Selection { prompt: String, items: Vec<String> },
+    Check { prompt: String, items: Vec<(String, bool)> },
 }
 
 pub enum CommandPaletteEvent {
@@ -37,20 +55,143 @@ impl Default for CommandPalette {
 
 impl CommandPalette {
     pub fn new() -> Self {
-        let commands = vec![
-            ">workbench.action.files.newUntitledFile".to_string(),
-            ">workbench.action.files.openFile".to_string(),
-            ">workbench.action.files.save".to_string(),
-            ">workbench.action.closeActiveEditor".to_string(),
-            ">workbench.action.quickOpen".to_string(),
-        ];
-        Self {
+        let mut cp = Self {
             input: String::new(),
             cursor_grapheme: 0,
             mode: PaletteMode::Command,
-            command_candidates: commands,
+            command_candidates: Vec::new(),
             file_candidates: Vec::new(),
             selected: 0,
+            commands: HashMap::new(),
+            input_mode: None,
+            input_buffer: String::new(),
+            selection_items: Vec::new(),
+            check_items: Vec::new(),
+        };
+        // デフォルトコマンドを追加
+        cp.add_command(
+            ">workbench.action.files.newUntitledFile".to_string(),
+            "新しいファイルを作成".to_string(),
+            Box::new(|_cp| {
+                send_notification("新しいファイルを作成", NotificationType::Info);
+            }),
+        );
+        cp.add_command(
+            ">workbench.action.files.openFile".to_string(),
+            "ファイルを開く".to_string(),
+            Box::new(|_cp| {
+                send_notification("ファイルを開く", NotificationType::Info);
+            }),
+        );
+        cp.add_command(
+            ">workbench.action.files.save".to_string(),
+            "ファイルを保存".to_string(),
+            Box::new(|_cp| {
+                send_notification("ファイルを保存", NotificationType::Info);
+            }),
+        );
+        cp.add_command(
+            ">workbench.action.closeActiveEditor".to_string(),
+            "エディタを閉じる".to_string(),
+            Box::new(|_cp| {
+                send_notification("エディタを閉じる", NotificationType::Info);
+            }),
+        );
+        cp.add_command(
+            ">workbench.action.quickOpen".to_string(),
+            "クイックオープン".to_string(),
+            Box::new(|_cp| {
+                send_notification("クイックオープン", NotificationType::Info);
+            }),
+        );
+        cp.update_mode_and_candidates();
+        cp
+    }
+
+    /// コマンドを追加
+    pub fn add_command(
+        &mut self,
+        name: String,
+        explain: String,
+        func: Box<dyn FnMut(&mut CommandPalette) + Send>,
+    ) {
+        self.commands.insert(
+            name.clone(),
+            Command {
+                name: name.clone(),
+                explain,
+                func: Some(func),
+            },
+        );
+        self.update_mode_and_candidates();
+    }
+
+    /// テキスト入力を受け付ける
+    pub fn get_string(&mut self, prompt: String) {
+        self.input_mode = Some(InputMode::StringInput { prompt });
+        self.input_buffer.clear();
+    }
+
+    /// 選択肢から選ばせる
+    pub fn get_selection(&mut self, prompt: String, items: Vec<String>) {
+        self.input_mode = Some(InputMode::Selection { prompt, items: items.clone() });
+        self.selection_items = items;
+        self.selected = 0;
+    }
+
+    /// チェックボックス選択
+    pub fn get_check(&mut self, prompt: String, items: Vec<(String, bool)>) {
+        self.input_mode = Some(InputMode::Check { prompt, items: items.clone() });
+        self.check_items = items;
+        self.selected = 0;
+    }
+
+    /// コマンド候補リストの最大幅を計算
+    fn calc_command_list_width(&self, min_width: u16, max_width: u16) -> u16 {
+        let mut width = min_width;
+        let items = match self.mode {
+            PaletteMode::Command => &self.command_candidates,
+            PaletteMode::File => &self.file_candidates,
+        };
+        for item in items {
+            let w = item.chars().count() as u16 + 4; // 余白分+4
+            if w > width {
+                width = w;
+            }
+        }
+        width.min(max_width)
+    }
+
+    /// コマンド候補リストの最大高さを計算（縦幅を可変にする）
+    fn calc_command_list_height(&self, max_height: u16) -> u16 {
+        let items_len = match self.mode {
+            PaletteMode::Command => self.command_candidates.len(),
+            PaletteMode::File => self.file_candidates.len(),
+        } as u16;
+        items_len.min(max_height)
+    }
+
+    /// コマンドを実行
+    pub fn execute_selected_command(&mut self) {
+        if let Some(cmd_name) = self.command_candidates.get(self.selected).cloned() {
+            // コマンドを一時的に取り出す
+            let mut func_opt: Option<Box<dyn FnMut(&mut CommandPalette) + Send>> = None;
+            if let Some(cmd) = self.commands.get_mut(&cmd_name) {
+                // funcをOptionで一時的にmove
+                std::mem::swap(&mut func_opt, &mut cmd.func.take());
+            }
+            if let Some(mut func) = func_opt {
+                func(self);
+                // 実行後、funcを戻す
+                if let Some(cmd) = self.commands.get_mut(&cmd_name) {
+                    cmd.func = Some(func);
+                }
+            } else {
+                send_notification(
+                    format!("Error: Unknown Command: {}", cmd_name),
+                    NotificationType::Error,
+                );
+            }
         }
     }
 
@@ -117,54 +258,25 @@ impl CommandPalette {
             KeyCode::Enter => {
                 match self.mode {
                     PaletteMode::Command => {
-                        if self.command_candidates.is_empty() {
-                            send_notification(
-                                "Error: No command candidates",
-                                NotificationType::Error,
-                            );
-                            return CommandPaletteEvent::None;
-                        }
-                        if let Some(cmd) = self.command_candidates.get(self.selected) {
-                            let known_commands = [
-                                ">workbench.action.files.newUntitledFile",
-                                ">workbench.action.files.openFile",
-                                ">workbench.action.files.save",
-                                ">workbench.action.closeActiveEditor",
-                                ">workbench.action.quickOpen",
-                            ];
-                            if known_commands.contains(&cmd.as_str()) {
-                                return CommandPaletteEvent::ExecuteCommand(cmd.clone());
-                            } else {
-                                send_notification(
-                                    format!("Error: Unknown Command: {}", cmd),
-                                    NotificationType::Error,
-                                );
-                                return CommandPaletteEvent::None;
-                            }
-                        }
+                        self.execute_selected_command();
+                        CommandPaletteEvent::None
                     }
                     PaletteMode::File => {
-                        if self.file_candidates.is_empty() {
-                            send_notification(
-                                "Error: No file candidates",
-                                NotificationType::Error,
-                            );
-                            return CommandPaletteEvent::None;
-                        }
                         if let Some(file) = self.file_candidates.get(self.selected) {
                             if std::path::Path::new(file).exists() {
-                                return CommandPaletteEvent::OpenFile(file.clone());
+                                CommandPaletteEvent::OpenFile(file.clone())
                             } else {
                                 send_notification(
                                     "Error: Couldn't find file",
                                     NotificationType::Error,
                                 );
-                                return CommandPaletteEvent::None;
+                                CommandPaletteEvent::None
                             }
+                        } else {
+                            CommandPaletteEvent::None
                         }
                     }
                 }
-                CommandPaletteEvent::None
             }
             _ => CommandPaletteEvent::None,
         }
@@ -174,13 +286,8 @@ impl CommandPalette {
         if self.input.starts_with('>') {
             self.mode = PaletteMode::Command;
             let q = self.input.trim_start_matches('>').to_lowercase();
-            let all_commands = vec![
-                ">workbench.action.files.newUntitledFile".to_string(),
-                ">workbench.action.files.openFile".to_string(),
-                ">workbench.action.files.save".to_string(),
-                ">workbench.action.closeActiveEditor".to_string(),
-                ">workbench.action.quickOpen".to_string(),
-            ];
+            let mut all_commands: Vec<String> = self.commands.keys().cloned().collect();
+            all_commands.sort();
             self.command_candidates = if q.is_empty() {
                 all_commands
             } else {
@@ -221,11 +328,15 @@ impl CommandPalette {
         f.set_cursor_position((area.x + cursor_width as u16 + 1, area.y + 1));
 
         // 候補リスト表示
+        let fixed_width = 40; // 横幅は固定
+        let max_height = area.height.saturating_sub(3).max(5);
+        let list_height = self.calc_command_list_height(max_height);
+
         let list_area = Rect {
             x: area.x,
             y: area.y + 3,
-            width: area.width,
-            height: area.height.saturating_sub(3).max(5), // 高さを最低5に
+            width: fixed_width,
+            height: list_height,
         };
 
         let items: Vec<ListItem> = match self.mode {
@@ -256,5 +367,71 @@ impl CommandPalette {
             )
             .highlight_style(Style::default().bg(Color::DarkGray));
         f.render_widget(list, list_area);
+
+        // input_mode に応じた描画
+        if let Some(input_mode) = &self.input_mode {
+            let mode_block = Block::default().borders(Borders::ALL).title("Input Mode");
+
+            match input_mode {
+                InputMode::StringInput { prompt } => {
+                    let prompt_line = Line::from(prompt.as_str());
+                    let prompt_paragraph = Paragraph::new(prompt_line).block(mode_block.clone());
+                    f.render_widget(prompt_paragraph, area);
+
+                    let input_line = Line::from(self.input_buffer.as_str());
+                    let input_paragraph = Paragraph::new(input_line).block(mode_block.clone());
+                    f.render_widget(input_paragraph, area);
+                }
+                InputMode::Selection { prompt, items } => {
+                    let prompt_line = Line::from(prompt.as_str());
+                    let prompt_paragraph = Paragraph::new(prompt_line).block(mode_block.clone());
+                    f.render_widget(prompt_paragraph, area);
+
+                    let items: Vec<ListItem> = items.iter().enumerate().map(|(i, name)| {
+                        if i == self.selected {
+                            ListItem::new(name.clone()).style(Style::default().fg(Color::Green))
+                        } else {
+                            ListItem::new(name.clone())
+                        }
+                    }).collect();
+                    let list = List::new(items)
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title("Select an Option")
+                                .style(Style::default().bg(Color::Black)),
+                        )
+                        .highlight_style(Style::default().bg(Color::DarkGray));
+                    f.render_widget(list, area);
+                }
+                InputMode::Check { prompt, items } => {
+                    let prompt_line = Line::from(prompt.as_str());
+                    let prompt_paragraph = Paragraph::new(prompt_line).block(mode_block.clone());
+                    f.render_widget(prompt_paragraph, area);
+
+                    let items: Vec<ListItem> = items.iter().enumerate().map(|(i, (name, checked))| {
+                        let display_text = if *checked {
+                            format!("✓ {}", name)
+                        } else {
+                            format!("  {}", name)
+                        };
+                        if i == self.selected {
+                            ListItem::new(display_text).style(Style::default().fg(Color::Green))
+                        } else {
+                            ListItem::new(display_text)
+                        }
+                    }).collect();
+                    let list = List::new(items)
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title("Select Options")
+                                .style(Style::default().bg(Color::Black)),
+                        )
+                        .highlight_style(Style::default().bg(Color::DarkGray));
+                    f.render_widget(list, area);
+                }
+            }
+        }
     }
 }
