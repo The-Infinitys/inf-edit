@@ -171,19 +171,19 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 return Ok(AppEvent::Continue);
             }
 
-            // Switch Primary Sidebar Tabs (Ctrl+Shift+, for previous, Ctrl+Shift+. for next)
-            // This corresponds to Ctrl+< and Ctrl+> on many layouts.
-            // This avoids the problematic Ctrl+[ which is the same as ESC, and works across keyboard layouts.
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) {
+            // Switch Primary Sidebar Tabs (Alt+H for previous, Alt+L for next)
+            // This uses Alt keybindings which are less likely to conflict with terminal emulators
+            // and are available on most keyboards.
+            if key.modifiers == KeyModifiers::ALT {
                 match key.code {
-                    KeyCode::Char(',') => { // Previous Tab (Ctrl+<)
+                    KeyCode::Char('h') => { // Previous Tab
                         if app.show_primary_sidebar && !app.primary_sidebar_components.is_empty() {
                             app.active_primary_sidebar_tab = app.active_primary_sidebar_tab.saturating_sub(1);
                             app.active_target = ActiveTarget::PrimarySideBar;
                             return Ok(AppEvent::Continue);
                         }
                     }
-                    KeyCode::Char('.') => { // Next Tab (Ctrl+>)
+                    KeyCode::Char('l') => { // Next Tab
                         if app.show_primary_sidebar && !app.primary_sidebar_components.is_empty() {
                             app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len();
                             app.active_target = ActiveTarget::PrimarySideBar;

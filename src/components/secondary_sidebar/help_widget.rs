@@ -30,7 +30,7 @@ impl HelpWidget {
                 ListItem::new("Ctrl+K: Switch Focus"),
                 ListItem::new("Ctrl+N: New Editor"),
                 ListItem::new("Ctrl+T: Next Editor/Term Tab"),
-                ListItem::new("Ctrl+< / Ctrl+>: Prev/Next Sidebar Tab"),
+                ListItem::new("Alt+H / Alt+L: Prev/Next Sidebar Tab"),
                 ListItem::new("Ctrl+Alt+B: Toggle Help"),
             ];
 
