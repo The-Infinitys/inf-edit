@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Borders, Tabs},
 };
@@ -34,16 +34,19 @@ impl<'a> MainWidget<'a> {
             .constraints([Constraint::Length(2), Constraint::Min(0)]) // Tabs, Editor
             .split(area);
 
-        let editor_tab_titles: Vec<Line> = self
-            .editor_tabs
+        let editor_tab_titles: Vec<Line> = self.editor_tabs
             .iter()
             .enumerate()
             .map(|(i, tab)| {
-                let mut title = tab.title.clone();
-                if i == self.active_editor_tab_index && self.active_target == ActiveTarget::Editor {
-                    title = format!("*{}", title);
+                let is_active_and_focused =
+                    i == self.active_editor_tab_index && self.active_target == ActiveTarget::Editor;
+
+                if is_active_and_focused {
+                    // Prepend a styled `*` to the title if the editor tab is active and focused
+                    Line::from(vec![Span::raw("*").yellow(), Span::raw(" "), Span::raw(&tab.title)])
+                } else {
+                    Line::from(tab.title.as_str())
                 }
-                Line::from(Span::raw(title))
             })
             .collect();
 
