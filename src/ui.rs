@@ -83,15 +83,16 @@ pub fn draw(
         };
 
         // 3. Center Area Vertical Split: Main Widget Area | (Panel Area)
-        let mut center_vertical_constraints = Vec::new();
-        center_vertical_constraints.push(Constraint::Min(0)); // Main Widget Area (takes remaining space)
-        if app.show_panel {
-            center_vertical_constraints.push(Constraint::Percentage(33)); // Panel Area (~1/3 of center height)
-        }
-
+        let center_constraints = if app.show_panel {
+            // When the panel is visible, split the space.
+            vec![Constraint::Percentage(67), Constraint::Percentage(33)]
+        } else {
+            // When the panel is hidden, the main widget takes all the space.
+            vec![Constraint::Percentage(100)]
+        };
         let center_vertical_layout_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(center_vertical_constraints)
+            .constraints(center_constraints)
             .split(center_area);
 
         // Render PrimarySideBar (Tabs and Content)
@@ -127,22 +128,50 @@ pub fn draw(
 
         // Render MainWidget (Editor Tabs + Active Editor)
         if !app.editors.is_empty() {
-            MainWidget::new(
+            // Split the main widget area to have tabs on top
+            let main_widget_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(1), // Area for tabs
+                    Constraint::Min(0),    // Area for editor content
+                ])
+                .split(main_widget_area);
+
+            let tabs_area = main_widget_chunks[0];
+            let content_area = main_widget_chunks[1];
+
+            let mut main_widget = MainWidget::new(
                 &mut app.editors,
                 app.active_editor_tab,
                 app.active_target == ActiveTarget::Editor,
-            )
-            .render(f, main_widget_area);
+            );
+
+            main_widget.render_tabs(f, tabs_area);
+            main_widget.render_content(f, content_area);
         }
 
         // Render the Panel
         if app.show_panel && !app.terminals.is_empty() {
+            // Split the panel area to have tabs on top
+            let panel_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(1), // Area for tabs
+                    Constraint::Min(0),    // Area for terminal content
+                ])
+                .split(panel_area);
+
+            let tabs_area = panel_chunks[0];
+            let content_area = panel_chunks[1];
+
             let mut panel = Panel::new(
                 &mut app.terminals,
                 app.active_terminal_tab,
                 app.active_target == ActiveTarget::Panel,
             );
-            panel.render(f, panel_area);
+
+            panel.render_tabs(f, tabs_area);
+            panel.render_content(f, content_area);
         }
 
         // Render the status bar at the bottom

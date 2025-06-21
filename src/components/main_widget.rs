@@ -1,8 +1,6 @@
 use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Stylize},
-    text::{Line, Span},
+    prelude::*,
+    style::{Color, Modifier, Style},
     widgets::{Block, Borders, Tabs},
 };
 
@@ -23,45 +21,37 @@ impl<'a> MainWidget<'a> {
         is_active: bool,
     ) -> Self {
         Self {
-            editor_tabs, active_editor_tab_index, is_active
+            editor_tabs,
+            active_editor_tab_index,
+            is_active,
         }
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(2), Constraint::Min(0)]) // Tabs, Editor
-            .split(area);
+    /// Renders the editor tabs at the top of its area.
+    pub fn render_tabs(&self, f: &mut Frame, area: Rect) {
+        let titles: Vec<String> = self.editor_tabs.iter().map(|t| t.title.clone()).collect();
+        let tabs = Tabs::new(titles)
+            .block(Block::default().borders(Borders::BOTTOM))
+            .select(self.active_editor_tab_index)
+            .style(Style::default().fg(Color::Gray))
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            );
+        f.render_widget(tabs, area);
+    }
 
-        let editor_tab_titles: Vec<Line> = self.editor_tabs
-            .iter()
-            .enumerate()
-            .map(|(i, tab)| {
-                let is_active_and_focused = i == self.active_editor_tab_index && self.is_active;
-
-                if is_active_and_focused {
-                    // Prepend a styled `*` to the title if the editor tab is active and focused
-                    Line::from(vec![Span::raw("*").yellow(), Span::raw(" "), Span::raw(&tab.title)])
-                } else {
-                    Line::from(tab.title.as_str())
-                }
-            })
-            .collect();
-
-        let tabs = Tabs::new(editor_tab_titles)
-            .block(
-                Block::default()
-                    .borders(Borders::BOTTOM)
-                    .title("Editor Tabs"),
-            )
-            .highlight_style(Style::default().fg(Color::Green));
-        f.render_widget(tabs, chunks[0]);
-
-        if let Some(active_editor) = self.editor_tabs.get_mut(self.active_editor_tab_index) {
-            let editor_block = Block::default(); // No borders for the editor content itself
-            active_editor
-                .content
-                .render_with_block(f, chunks[1], editor_block);
+    /// Renders the content of the active editor.
+    pub fn render_content(&mut self, f: &mut Frame, area: Rect) {
+        if let Some(active_editor_tab) = self.editor_tabs.get_mut(self.active_editor_tab_index) {
+            let border_style = if self.is_active {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default()
+            };
+            let content_block = Block::default().borders(Borders::ALL).border_style(border_style);
+            active_editor_tab.content.render_with_block(f, area, content_block);
         }
     }
 }

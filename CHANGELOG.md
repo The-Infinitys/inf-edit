@@ -1,5 +1,11 @@
 # Change Log
 
+## version 1.2.0
+
+- 操作性の改善
+- ヘルプメッセージの変更
+- Search, Gitメニューを追加。
+
 ## version 1.1.1
 
 - バグの修正
