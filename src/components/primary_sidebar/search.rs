@@ -1,10 +1,10 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::Rect,
     prelude::*,
     text::Line,
     widgets::{Block, Borders, Paragraph},
 };
-use crossterm::event::{KeyCode, KeyEvent};
 
 #[derive(Default)]
 pub struct SearchWidget {
@@ -51,9 +51,7 @@ impl SearchWidget {
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect, is_active: bool) {
-        let mut search_block = Block::default()
-            .title("Search")
-            .borders(Borders::ALL);
+        let mut search_block = Block::default().title("Search").borders(Borders::ALL);
         if is_active {
             search_block = search_block.style(Style::default().fg(Color::Yellow));
         }

@@ -156,7 +156,7 @@ pub fn draw(
             let panel_chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
-                    Constraint::Min(0),    // Area for terminal content
+                    Constraint::Min(0),     // Area for terminal content
                     Constraint::Length(20), // Area for tabs
                 ])
                 .split(panel_area);

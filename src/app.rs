@@ -5,9 +5,11 @@ use crate::{
     components::{
         main_widget::editor::Editor,
         panel::term::Term,
-        primary_sidebar::{component::PrimarySidebarComponent, search::SearchWidget, FileView, git::GitWidget}, // Add git::GitWidget here
-        secondary_sidebar::help_widget::HelpWidget,
+        primary_sidebar::{
+            FileView, component::PrimarySidebarComponent, git::GitWidget, search::SearchWidget,
+        }, // Add git::GitWidget here
         secondary_sidebar::component::SecondarySidebarComponent,
+        secondary_sidebar::help_widget::HelpWidget,
     },
 };
 
@@ -44,22 +46,22 @@ impl App {
                 title: "Editor 1".to_string(),
             }],
             terminals: vec![], // No initial terminals, they are created on demand
-            primary_sidebar_components: vec![Tab {
-                content: PrimarySidebarComponent::FileView(
-                    FileView::new(env::current_dir().unwrap_or_else(|_| "/".into()))
-                ),
-                title: "Explorer".to_string(),
-            },
-            Tab {
-                content: PrimarySidebarComponent::Search(
-                    SearchWidget::new()
-                ),
-                title: "Search".to_string(),
-            },
-            Tab {
-                content: PrimarySidebarComponent::Git(GitWidget::new()),
-                title: "Git".to_string(),
-            }],
+            primary_sidebar_components: vec![
+                Tab {
+                    content: PrimarySidebarComponent::FileView(FileView::new(
+                        env::current_dir().unwrap_or_else(|_| "/".into()),
+                    )),
+                    title: "Explorer".to_string(),
+                },
+                Tab {
+                    content: PrimarySidebarComponent::Search(SearchWidget::new()),
+                    title: "Search".to_string(),
+                },
+                Tab {
+                    content: PrimarySidebarComponent::Git(GitWidget::new()),
+                    title: "Git".to_string(),
+                },
+            ],
             secondary_sidebar_components: vec![Tab {
                 content: SecondarySidebarComponent::Help(HelpWidget::new()),
                 title: "Help".to_string(),
@@ -93,12 +95,26 @@ impl App {
     }
 
     /// Adds a new component to the primary sidebar as a tab.
-    pub fn add_primary_sidebar_component(&mut self, component: PrimarySidebarComponent, title: String) {
-        self.primary_sidebar_components.push(Tab { content: component, title });
+    pub fn add_primary_sidebar_component(
+        &mut self,
+        component: PrimarySidebarComponent,
+        title: String,
+    ) {
+        self.primary_sidebar_components.push(Tab {
+            content: component,
+            title,
+        });
     }
 
     /// Adds a new component to the secondary sidebar as a tab.
-    pub fn add_secondary_sidebar_component(&mut self, component: SecondarySidebarComponent, title: String) {
-        self.secondary_sidebar_components.push(Tab { content: component, title });
+    pub fn add_secondary_sidebar_component(
+        &mut self,
+        component: SecondarySidebarComponent,
+        title: String,
+    ) {
+        self.secondary_sidebar_components.push(Tab {
+            content: component,
+            title,
+        });
     }
 }

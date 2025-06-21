@@ -1,5 +1,5 @@
 use super::help_widget::HelpWidget;
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 
 /// Enum to hold all possible components for the secondary sidebar.
 pub enum SecondarySidebarComponent {

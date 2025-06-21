@@ -3,9 +3,9 @@ pub mod help_widget;
 use self::component::SecondarySidebarComponent;
 use crate::Tab;
 use ratatui::{
-    prelude::*,
     Frame,
     layout::Rect,
+    prelude::*,
     widgets::{Block, Borders, Tabs},
 };
 

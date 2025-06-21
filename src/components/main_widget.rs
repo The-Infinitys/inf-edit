@@ -49,8 +49,13 @@ impl<'a> MainWidget<'a> {
             } else {
                 Style::default()
             };
-            let content_block = Block::default().borders(Borders::ALL).border_style(border_style).title("Editor"); // Added title for clarity
-            active_editor_tab.content.render_with_block(f, area, content_block);
+            let content_block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(border_style)
+                .title("Editor"); // Added title for clarity
+            active_editor_tab
+                .content
+                .render_with_block(f, area, content_block);
         }
     }
 }

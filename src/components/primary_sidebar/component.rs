@@ -1,8 +1,8 @@
 use super::file_view::FileView;
-use super::search::SearchWidget;
 use super::git::GitWidget;
-use ratatui::{layout::Rect, Frame};
+use super::search::SearchWidget;
 use crossterm::event::KeyEvent;
+use ratatui::{Frame, layout::Rect};
 /// Enum to hold all possible components for the primary sidebar.
 pub enum PrimarySidebarComponent {
     FileView(FileView),

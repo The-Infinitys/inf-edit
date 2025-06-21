@@ -1,9 +1,9 @@
 pub mod file_view;
 pub use self::file_view::FileView;
 
-pub mod search;
-pub mod git; // Add this line to expose the git module
 pub mod component;
+pub mod git; // Add this line to expose the git module
+pub mod search;
 use self::component::PrimarySidebarComponent;
 use crate::Tab;
 use ratatui::{
@@ -51,8 +51,8 @@ impl<'a> PrimarySideBar<'a> {
             })
             .collect();
 
-        let tabs_list = List::new(tab_titles)
-            .block(Block::default().title("Tabs").borders(Borders::RIGHT));
+        let tabs_list =
+            List::new(tab_titles).block(Block::default().title("Tabs").borders(Borders::RIGHT));
 
         f.render_widget(tabs_list, area);
     }
@@ -71,7 +71,9 @@ impl<'a> PrimarySideBar<'a> {
             let content_area = content_block.inner(area);
             f.render_widget(content_block, area);
 
-            active_component.content.render(f, content_area, self.is_active);
+            active_component
+                .content
+                .render(f, content_area, self.is_active);
         }
     }
 }

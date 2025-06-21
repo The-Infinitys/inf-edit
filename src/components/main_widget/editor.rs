@@ -2,8 +2,8 @@ use crate::event_handler::PtyInput;
 use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use std::env;
 use std::io::{Read, Write};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
 use tui_term::widget::PseudoTerminal;
@@ -53,7 +53,8 @@ impl Editor {
             let parser = Arc::clone(&parser);
             let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
             let dead_clone = dead.clone(); // Clone dead for the thread
-            thread::spawn(move || { // Move the cloned dead into the thread
+            thread::spawn(move || {
+                // Move the cloned dead into the thread
                 let mut buf = [0u8; 4096];
                 while let Ok(n) = reader.read(&mut buf) {
                     if n == 0 {
@@ -100,8 +101,8 @@ impl Editor {
         let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
         f.render_widget(pseudo_term, area);
         let (cur_y, cur_x) = parser.screen().cursor_position(); // This is 1-based (y, x)
-        let cursor_x = inner_area.x + cur_x - 1;
-        let cursor_y = inner_area.y + cur_y - 1;
+        let cursor_x = inner_area.x + cur_x;
+        let cursor_y = inner_area.y + cur_y;
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
@@ -137,7 +138,8 @@ impl Editor {
             let parser = Arc::clone(&parser);
             let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
             let dead_clone = dead.clone(); // Clone dead for the thread
-            thread::spawn(move || { // Move the cloned dead into the thread
+            thread::spawn(move || {
+                // Move the cloned dead into the thread
                 let mut buf = [0u8; 4096];
                 while let Ok(n) = reader.read(&mut buf) {
                     if n == 0 {

@@ -1,13 +1,14 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::env;
-use std::time::{Duration};
+use std::time::Duration;
 
 use crate::{
     ActiveTarget,
     app::App,
     components::{
-        main_widget::editor::Editor, panel::term::Term,
+        main_widget::editor::Editor,
+        panel::term::Term,
         primary_sidebar::component::PrimarySidebarComponent, // Keep this import
         secondary_sidebar::component::SecondarySidebarComponent, // Add this import
     },
@@ -43,7 +44,8 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             }
 
             // Terminals
-            if !app.terminals.is_empty() && app.terminals[app.active_terminal_tab].content.is_dead() {
+            if !app.terminals.is_empty() && app.terminals[app.active_terminal_tab].content.is_dead()
+            {
                 app.terminals.remove(app.active_terminal_tab);
                 if app.terminals.is_empty() {
                     // If all terminals are closed, hide the panel and switch focus
@@ -92,10 +94,11 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             // Toggle Panel (Terminal)
             // - If hidden: show and focus.
             // - If visible and focused: hide and focus editor/sidebar.
-            // - If visible and not focused: just focus.            
+            // - If visible and not focused: just focus.
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
                 // Helper to get CWD for new terminals
-                let cwd_for_new_term = app.primary_sidebar_components
+                let cwd_for_new_term = app
+                    .primary_sidebar_components
                     .get(app.active_primary_sidebar_tab)
                     .and_then(|tab| {
                         if let PrimarySidebarComponent::FileView(fv) = &tab.content {
@@ -106,7 +109,8 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                     })
                     .or_else(|| env::current_dir().ok());
 
-                if !app.show_panel { // Case 1: Panel is hidden. We want to show it.
+                if !app.show_panel {
+                    // Case 1: Panel is hidden. We want to show it.
                     if app.terminals.is_empty() {
                         // Create the first terminal if none exist.
                         let term = Term::new(cwd_for_new_term)?;
@@ -119,7 +123,8 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                     }
                     app.show_panel = true;
                     app.active_target = ActiveTarget::Panel;
-                } else { // Case 2: Panel is visible.
+                } else {
+                    // Case 2: Panel is visible.
                     if app.active_target == ActiveTarget::Panel {
                         // It's visible and focused, so hide it.
                         app.show_panel = false;
@@ -145,9 +150,16 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             }
 
             // Toggle Help Widget (Ctrl+Alt+B)
-            if key.modifiers.contains(KeyModifiers::CONTROL | KeyModifiers::ALT) && key.code == KeyCode::Char('b') {
+            if key
+                .modifiers
+                .contains(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                && key.code == KeyCode::Char('b')
+            {
                 let mut help_is_now_visible = false;
-                if let Some(tab) = app.secondary_sidebar_components.get_mut(app.active_secondary_sidebar_tab) {
+                if let Some(tab) = app
+                    .secondary_sidebar_components
+                    .get_mut(app.active_secondary_sidebar_tab)
+                {
                     // The compiler warns this is an irrefutable pattern because the secondary sidebar
                     // currently only ever contains a Help widget. Using `let` is more direct.
                     // If other component types are added later, this will become a compile error,
@@ -207,7 +219,8 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                         // Focus remains on Editor, panel remains hidden.
                     }
                     ActiveTarget::Panel => {
-                        let cwd_for_new_term = app.primary_sidebar_components
+                        let cwd_for_new_term = app
+                            .primary_sidebar_components
                             .get(app.active_primary_sidebar_tab)
                             .and_then(|tab| {
                                 if let PrimarySidebarComponent::FileView(fv) = &tab.content {
@@ -221,7 +234,8 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                         app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
                         // Focus remains on Panel, panel remains visible.
                     }
-                    _ => { // For sidebars or other targets, default to new editor
+                    _ => {
+                        // For sidebars or other targets, default to new editor
                         let editor = Editor::new();
                         app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
                         app.active_target = ActiveTarget::Editor; // Explicitly set focus to editor
@@ -261,37 +275,69 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 return Ok(AppEvent::Continue);
             }
 
-            // Switch Primary Sidebar Tabs (Alt+H for previous, Alt+L for next)
-            // This uses Alt keybindings which are less likely to conflict with terminal emulators
-            // and are available on most keyboards.
+            // Switch Editor/Terminal Tabs (Alt+H for previous, Alt+L for next)
             if key.modifiers == KeyModifiers::ALT {
                 match key.code {
-                    KeyCode::Char('h') => { // Previous Tab
+                    KeyCode::Char('h') => {
+                        // Previous Tab
+                        if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
+                            app.active_editor_tab = if app.active_editor_tab == 0 {
+                                app.editors.len() - 1
+                            } else {
+                                app.active_editor_tab - 1
+                            };
+                        } else if app.active_target == ActiveTarget::Panel
+                            && !app.terminals.is_empty()
+                        {
+                            app.active_terminal_tab = if app.active_terminal_tab == 0 {
+                                app.terminals.len() - 1
+                            } else {
+                                app.active_terminal_tab - 1
+                            };
+                        }
+                        return Ok(AppEvent::Continue);
+                    }
+                    KeyCode::Char('l') => {
+                        // Next Tab
+                        if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
+                            app.active_editor_tab = (app.active_editor_tab + 1) % app.editors.len();
+                        } else if app.active_target == ActiveTarget::Panel
+                            && !app.terminals.is_empty()
+                        {
+                            app.active_terminal_tab =
+                                (app.active_terminal_tab + 1) % app.terminals.len();
+                        }
+                        return Ok(AppEvent::Continue);
+                    }
+                    _ => {}
+                }
+            }
+
+            // Switch Primary Sidebar Tabs (Ctrl+Tab for next, Ctrl+Shift+Tab for previous)
+            if key.modifiers == KeyModifiers::CONTROL {
+                match key.code {
+                    KeyCode::Tab => {
                         if app.show_primary_sidebar && !app.primary_sidebar_components.is_empty() {
-                            app.active_primary_sidebar_tab = app.active_primary_sidebar_tab.saturating_sub(1);
+                            app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1)
+                                % app.primary_sidebar_components.len();
                             app.active_target = ActiveTarget::PrimarySideBar;
                             return Ok(AppEvent::Continue);
                         }
                     }
-                    KeyCode::Char('l') => { // Next Tab
+                    KeyCode::BackTab => {
                         if app.show_primary_sidebar && !app.primary_sidebar_components.is_empty() {
-                            app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len();
+                            app.active_primary_sidebar_tab = if app.active_primary_sidebar_tab == 0
+                            {
+                                app.primary_sidebar_components.len() - 1
+                            } else {
+                                app.active_primary_sidebar_tab - 1
+                            };
                             app.active_target = ActiveTarget::PrimarySideBar;
                             return Ok(AppEvent::Continue);
                         }
                     }
                     _ => {}
                 }
-            }
-
-            // Switch Tabs (Ctrl+T)
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('t') {
-                if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
-                    app.active_editor_tab = (app.active_editor_tab + 1) % app.editors.len();
-                } else if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() {
-                    app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
-                }
-                return Ok(AppEvent::Continue);
             }
 
             // Switch Terminal Tabs (Ctrl+Shift+Left/Right) - Only when Panel is active
@@ -317,12 +363,16 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
 
             // Component-specific key handling
             match app.active_target {
-                ActiveTarget::Editor => if let Some(tab) = app.editors.get_mut(app.active_editor_tab) {
-                    send_key_to_terminal(&tab.content, key);
-                },
-                ActiveTarget::Panel => if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
-                    send_key_to_terminal(&tab.content, key);
-                },
+                ActiveTarget::Editor => {
+                    if let Some(tab) = app.editors.get_mut(app.active_editor_tab) {
+                        send_key_to_terminal(&tab.content, key);
+                    }
+                }
+                ActiveTarget::Panel => {
+                    if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                        send_key_to_terminal(&tab.content, key);
+                    }
+                }
                 ActiveTarget::PrimarySideBar => {
                     if let Some(tab) = app
                         .primary_sidebar_components
@@ -369,8 +419,8 @@ where
 
     // First, handle the key code to get the base byte sequence.
     let code_bytes = match key.code {
-        KeyCode::Backspace => vec![8],      // Backspace
-        KeyCode::Enter => vec![b'\r'],     // Carriage Return
+        KeyCode::Backspace => vec![8], // Backspace
+        KeyCode::Enter => vec![b'\r'], // Carriage Return
         KeyCode::Left => b"\x1b[D".to_vec(),
         KeyCode::Right => b"\x1b[C".to_vec(),
         KeyCode::Up => b"\x1b[A".to_vec(),

@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -7,7 +8,6 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem},
 };
 use std::collections::HashSet;
-use crossterm::event::{KeyEvent, KeyCode};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]

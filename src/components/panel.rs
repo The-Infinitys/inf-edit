@@ -42,8 +42,8 @@ impl<'a> Panel<'a> {
             })
             .collect();
 
-        let tabs_list = List::new(tab_titles)
-            .block(Block::default().title("Terminals").borders(Borders::ALL));
+        let tabs_list =
+            List::new(tab_titles).block(Block::default().title("Terminals").borders(Borders::ALL));
 
         f.render_widget(tabs_list, area);
     }
@@ -56,8 +56,13 @@ impl<'a> Panel<'a> {
             } else {
                 Style::default()
             };
-            let content_block = Block::default().borders(Borders::ALL).border_style(border_style).title("Terminal"); // Added title for clarity
-            active_term_tab.content.render_with_block(f, area, content_block);
+            let content_block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(border_style)
+                .title("Terminal"); // Added title for clarity
+            active_term_tab
+                .content
+                .render_with_block(f, area, content_block);
         }
     }
 }

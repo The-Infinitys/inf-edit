@@ -30,15 +30,15 @@ impl HelpWidget {
                 ListItem::new("Ctrl+K: Switch Focus"),
                 ListItem::new("Ctrl+N: New Tab (Editor/Terminal based on focus)"),
                 // Ctrl+Shift+N removed due to Konsole conflict
-                ListItem::new("Ctrl+T: Next Editor/Term Tab"),
+                ListItem::new("Alt+H / Alt+L: Prev/Next Editor/Terminal Tab"),
                 ListItem::new("Ctrl+W: Close Active Tab"),
                 ListItem::new("Ctrl+Shift+Up/Down: Prev/Next Terminal Tab"),
-                ListItem::new("Alt+H / Alt+L: Prev/Next Sidebar Tab"),
+                ListItem::new("Ctrl+Tab / Ctrl+Shift+Tab: Prev/Next Sidebar Tab"),
                 ListItem::new("Ctrl+Alt+B: Toggle Help"),
             ];
 
-            let help_list = List::new(help_items)
-                .block(Block::default().title("Help").borders(Borders::ALL));
+            let help_list =
+                List::new(help_items).block(Block::default().title("Help").borders(Borders::ALL));
 
             f.render_widget(help_list, app_area);
         }

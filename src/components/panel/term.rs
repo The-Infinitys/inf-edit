@@ -1,15 +1,15 @@
+use crate::event_handler::PtyInput;
 use anyhow::Result;
 use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use std::env;
 use std::io::{Read, Write};
-use std::sync::atomic::AtomicBool;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
 use tui_term::widget::PseudoTerminal;
-use crate::event_handler::PtyInput;
 
 pub struct Term {
     parser: Arc<Mutex<Parser>>,
@@ -101,8 +101,8 @@ impl Term {
         let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
         f.render_widget(pseudo_term, area); // area: このウィジェットのRect
         let (cur_y, cur_x) = parser.screen().cursor_position(); // This is 1-based (y, x)
-        let cursor_x = inner_area.x + cur_x - 1;
-        let cursor_y = inner_area.y + cur_y - 1;
+        let cursor_x = inner_area.x + cur_x;
+        let cursor_y = inner_area.y + cur_y;
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
