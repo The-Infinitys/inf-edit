@@ -13,19 +13,17 @@ use crate::{ActiveTarget, Tab};
 pub struct Panel<'a> {
     pub terminal_tabs: &'a mut Vec<Tab<Term>>,
     pub active_terminal_tab_index: usize,
-    pub active_target: ActiveTarget,
+    pub is_active: bool,
 }
 
 impl<'a> Panel<'a> {
     pub fn new(
         terminal_tabs: &'a mut Vec<Tab<Term>>,
         active_terminal_tab_index: usize,
-        active_target: ActiveTarget,
+        is_active: bool,
     ) -> Self {
         Self {
-            terminal_tabs,
-            active_terminal_tab_index,
-            active_target,
+            terminal_tabs, active_terminal_tab_index, is_active
         }
     }
 
@@ -50,8 +48,7 @@ impl<'a> Panel<'a> {
             .enumerate()
             .map(|(i, tab)| {
                 let mut style = Style::default();
-                if i == self.active_terminal_tab_index && self.active_target == ActiveTarget::Panel
-                {
+                if i == self.active_terminal_tab_index && self.is_active {
                     style = style.fg(Color::Green).add_modifier(Modifier::BOLD);
                 }
                 ListItem::new(Span::styled(tab.title.clone(), style))

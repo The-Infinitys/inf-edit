@@ -5,9 +5,7 @@ use std::time::{Duration, Instant};
 use crate::{
     ActiveTarget, Tab,
     app::App,
-    components::{
-        main_widget::editor::Editor, panel::term::Term, primary_sidebar::file_view::FileView,
-    },
+    components::{main_widget::editor::Editor, panel::term::Term, primary_sidebar::FileView},
 };
 
 pub enum AppEvent {
@@ -33,7 +31,7 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('b') {
                 app.show_file_view = !app.show_file_view;
                 app.active_target = if app.show_file_view {
-                    ActiveTarget::FileView
+                    ActiveTarget::PrimarySideBar
                 } else if app.show_panel {
                     ActiveTarget::Panel
                 } else {
@@ -50,7 +48,7 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                         app.active_target = ActiveTarget::Editor;
                     } else if app.show_file_view {
                         // If no editors, fall back to file view if visible
-                        app.active_target = ActiveTarget::FileView;
+                        app.active_target = ActiveTarget::PrimarySideBar;
                     }
                 } else {
                     if app.terminals.is_empty() {
@@ -131,10 +129,10 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                             if !app.editors.is_empty() {
                                 app.active_target = ActiveTarget::Editor;
                             } else if app.show_file_view {
-                                app.active_target = ActiveTarget::FileView;
+                                app.active_target = ActiveTarget::PrimarySideBar;
                             }
                         }
-                        ActiveTarget::FileView | ActiveTarget::PrimarySideBar => {
+                        ActiveTarget::PrimarySideBar => {
                             if !app.editors.is_empty() {
                                 app.active_target = ActiveTarget::Editor;
                             } else if !app.terminals.is_empty() {
@@ -143,7 +141,6 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                             }
                         }
                         ActiveTarget::SecondarySideBar => {}
-                        ActiveTarget::Term => {}
                     }
                 }
                 return Ok(AppEvent::Continue);
@@ -220,7 +217,7 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                         }
                     }
                 }
-                ActiveTarget::FileView | ActiveTarget::PrimarySideBar => match key.code {
+                ActiveTarget::PrimarySideBar => match key.code {
                     KeyCode::Down | KeyCode::Char('j') => f_view.next(),
                     KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
                     KeyCode::Enter => {
@@ -237,7 +234,6 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                     _ => {}
                 },
                 ActiveTarget::SecondarySideBar => {}
-                ActiveTarget::Term => {}
             }
         }
     }

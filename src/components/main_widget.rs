@@ -13,19 +13,17 @@ use crate::{ActiveTarget, Tab};
 pub struct MainWidget<'a> {
     pub editor_tabs: &'a mut Vec<Tab<Editor>>,
     pub active_editor_tab_index: usize,
-    pub active_target: ActiveTarget,
+    pub is_active: bool,
 }
 
 impl<'a> MainWidget<'a> {
     pub fn new(
         editor_tabs: &'a mut Vec<Tab<Editor>>,
         active_editor_tab_index: usize,
-        active_target: ActiveTarget,
+        is_active: bool,
     ) -> Self {
         Self {
-            editor_tabs,
-            active_editor_tab_index,
-            active_target,
+            editor_tabs, active_editor_tab_index, is_active
         }
     }
 
@@ -39,8 +37,7 @@ impl<'a> MainWidget<'a> {
             .iter()
             .enumerate()
             .map(|(i, tab)| {
-                let is_active_and_focused =
-                    i == self.active_editor_tab_index && self.active_target == ActiveTarget::Editor;
+                let is_active_and_focused = i == self.active_editor_tab_index && self.is_active;
 
                 if is_active_and_focused {
                     // Prepend a styled `*` to the title if the editor tab is active and focused

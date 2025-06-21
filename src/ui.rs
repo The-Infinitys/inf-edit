@@ -90,11 +90,7 @@ pub fn draw(
         // Render PrimarySideBar (FileView)
         if app.show_file_view {
             let mut primary_sidebar = PrimarySideBar::new(
-                f_view,
-                matches!(
-                    app.active_target,
-                    ActiveTarget::FileView | ActiveTarget::PrimarySideBar
-                ),
+                f_view, app.active_target == ActiveTarget::PrimarySideBar
             );
             // Example: Apply active style if PrimarySideBar is focused
             // let block = if app.active_target == ActiveTarget::PrimarySideBar {
@@ -120,8 +116,11 @@ pub fn draw(
 
         // Render MainWidget (Editor Tabs + Active Editor)
         if !app.editors.is_empty() {
-            MainWidget::new(&mut app.editors, app.active_editor_tab, app.active_target)
-                .render(f, main_widget_area);
+            MainWidget::new(
+                &mut app.editors,
+                app.active_editor_tab,
+                app.active_target == ActiveTarget::Editor,
+            ).render(f, main_widget_area);
         }
 
         // Render the Panel
@@ -129,7 +128,7 @@ pub fn draw(
             let mut panel = Panel::new(
                 &mut app.terminals,
                 app.active_terminal_tab,
-                app.active_target,
+                app.active_target == ActiveTarget::Panel,
             );
             panel.render(f, panel_area);
         }

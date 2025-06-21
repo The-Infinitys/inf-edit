@@ -30,7 +30,7 @@ impl App {
         App {
             show_file_view: true,
             show_panel: false,
-            active_target: ActiveTarget::FileView, // Default to FileView
+            active_target: ActiveTarget::PrimarySideBar, // Default to PrimarySideBar
             editors: vec![Tab {
                 content: Editor::new(),
                 title: "Editor 1".to_string(),

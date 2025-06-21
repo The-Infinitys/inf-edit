@@ -37,8 +37,7 @@ fn main() -> Result<()> {
         }
 
         // ターミナルプロセスの終了監視 (Ensure active_terminal_tab is valid before indexing)
-        if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() {
-            // Was Term
+        if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() { // Check if the panel is active
             if app.active_terminal_tab < app.terminals.len()
                 && app.terminals[app.active_terminal_tab].content.is_dead()
             {
