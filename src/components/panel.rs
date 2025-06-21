@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::*,
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     widgets::{Block, Borders, List, ListItem},
 };
 
