@@ -28,8 +28,8 @@ impl HelpWidget {
                 ListItem::new("Ctrl+B: Toggle File View"),
                 ListItem::new("Ctrl+J: Toggle Terminal"),
                 ListItem::new("Ctrl+K: Switch Focus"),
-                ListItem::new("Ctrl+N: New Editor Tab"),
-                ListItem::new("Ctrl+Shift+N: New Terminal Tab"),
+                ListItem::new("Ctrl+N: New Tab (Editor/Terminal based on focus)"),
+                // Ctrl+Shift+N removed due to Konsole conflict
                 ListItem::new("Ctrl+T: Next Editor/Term Tab"),
                 ListItem::new("Ctrl+W: Close Active Tab"),
                 ListItem::new("Ctrl+Shift+Up/Down: Prev/Next Terminal Tab"),

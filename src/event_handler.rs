@@ -165,30 +165,6 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 return Ok(AppEvent::Continue);
             }
 
-            // New Terminal Tab (Ctrl+Shift+N)
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                && key.code == KeyCode::Char('n')
-            // Changed 'u' back to 'j' as per original intent
-            {
-                let cwd_for_new_term = app.primary_sidebar_components
-                    .get(app.active_primary_sidebar_tab)
-                    .and_then(|tab| {
-                        if let PrimarySidebarComponent::FileView(fv) = &tab.content {
-                            Some(fv.current_path().clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .or_else(|| env::current_dir().ok());
-                let term = Term::new(cwd_for_new_term)?;
-                app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
-                app.active_target = ActiveTarget::Panel; // Focus the new terminal panel
-                app.show_panel = true; // Ensure panel is visible
-                return Ok(AppEvent::Continue);
-            }
-
             // Switch focus (Ctrl+K) - Cycle through visible and non-empty targets
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {
                 let mut targets = Vec::new();
@@ -222,12 +198,36 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 return Ok(AppEvent::Continue);
             }
 
-            // New Editor Tab (Ctrl+N)
+            // New Tab (Ctrl+N) - Editor or Terminal based on current focus
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('n') {
-                let editor = Editor::new();
-                app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
-                app.active_target = ActiveTarget::Editor;
-                app.show_panel = false; // Ensure panel is hidden when new editor is opened
+                match app.active_target {
+                    ActiveTarget::Editor => {
+                        let editor = Editor::new();
+                        app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
+                        // Focus remains on Editor, panel remains hidden.
+                    }
+                    ActiveTarget::Panel => {
+                        let cwd_for_new_term = app.primary_sidebar_components
+                            .get(app.active_primary_sidebar_tab)
+                            .and_then(|tab| {
+                                if let PrimarySidebarComponent::FileView(fv) = &tab.content {
+                                    Some(fv.current_path().clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .or_else(|| env::current_dir().ok());
+                        let term = Term::new(cwd_for_new_term)?;
+                        app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
+                        // Focus remains on Panel, panel remains visible.
+                    }
+                    _ => { // For sidebars or other targets, default to new editor
+                        let editor = Editor::new();
+                        app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
+                        app.active_target = ActiveTarget::Editor; // Explicitly set focus to editor
+                        app.show_panel = false; // Hide panel if it was visible and we opened an editor
+                    }
+                }
                 return Ok(AppEvent::Continue);
             }
 
@@ -241,7 +241,7 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 app.add_editor_tab(Editor::new(), "Editor 1".to_string()); // Always keep at least one editor
                                 app.active_editor_tab = 0;
                             } else if app.active_editor_tab >= app.editors.len() {
-                                app.active_editor_tab = app.editors.len() - 1;
+                                app.active_editor_tab = app.editors.len().saturating_sub(1);
                             }
                         }
                     }
@@ -252,14 +252,12 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 app.show_panel = false; // Hide panel if no terminals left
                                 app.active_target = ActiveTarget::Editor; // Switch focus
                             } else if app.active_terminal_tab >= app.terminals.len() {
-                                app.active_terminal_tab = app.terminals.len() - 1;
+                                app.active_terminal_tab = app.terminals.len().saturating_sub(1);
                             }
                         }
                     }
                     _ => {} // Do nothing for sidebars
                 }
-                app.active_target = ActiveTarget::Editor;
-                app.show_panel = false;
                 return Ok(AppEvent::Continue);
             }
 
