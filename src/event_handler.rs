@@ -60,24 +60,38 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             // - If visible and focused: hide and focus editor/sidebar.
             // - If visible and not focused: just focus.
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                if !app.show_panel {
-                    if app.terminals.is_empty() { // Create a terminal if none exist
+                if !app.show_panel { // Case 1: Panel is hidden. We want to show it.
+                    if app.terminals.is_empty() {
+                        // Create the first terminal if none exist.
                         let term = Term::new()?;
                         app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
+                    } else if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                        if tab.content.is_dead() {
+                            // If the active terminal is dead, restart it.
+                            tab.content = Term::new()?;
+                        }
                     }
                     app.show_panel = true;
                     app.active_target = ActiveTarget::Panel;
-                } else {
+                } else { // Case 2: Panel is visible.
                     if app.active_target == ActiveTarget::Panel {
+                        // It's visible and focused, so hide it.
                         app.show_panel = false;
                         app.active_target = if !app.editors.is_empty() {
                             ActiveTarget::Editor
                         } else if app.show_primary_sidebar {
                             ActiveTarget::PrimarySideBar
                         } else {
-                            ActiveTarget::Editor // Fallback
+                            ActiveTarget::Editor
                         };
                     } else {
+                        // It's visible but not focused. We want to focus it.
+                        // Before focusing, check if it's dead and restart if needed.
+                        if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                            if tab.content.is_dead() {
+                                tab.content = Term::new()?;
+                            }
+                        }
                         app.active_target = ActiveTarget::Panel;
                     }
                 }
@@ -110,27 +124,6 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
                 app.active_target = ActiveTarget::Panel; // Focus the new terminal panel
                 app.show_panel = true; // Ensure panel is visible
-                return Ok(AppEvent::Continue);
-            }
-
-            // Toggle Secondary Sidebar (Ctrl+Alt+B)
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT)
-                && key.code == KeyCode::Char('b')
-            {
-                let mut last_time = LAST_CTRL_ALT_EVENT_TIME
-                    .get_or_init(|| {
-                        std::sync::Mutex::new(
-                            Instant::now()
-                                .checked_sub(DEBOUNCE_DURATION)
-                                .unwrap_or_else(Instant::now),
-                        )
-                    })
-                    .lock()
-                    .unwrap();
-                if last_time.elapsed() >= DEBOUNCE_DURATION { // Debounce to prevent multiple triggers
-                    app.show_secondary_sidebar = !app.show_secondary_sidebar;
-                    *last_time = Instant::now();
-                }
                 return Ok(AppEvent::Continue);
             }
 
