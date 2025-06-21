@@ -16,6 +16,7 @@ crossterm = "0.29.0"
 portable-pty = "0.9.0"
 ratatui = "0.29.0"
 tui-term = "0.2.0"
+unicode-segmentation = "1.12.0"
 walkdir = "2.5.0"
 
 # --- cargo-deb (DEBパッケージ) のためのメタデータ ---

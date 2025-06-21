@@ -370,6 +370,7 @@ dependencies = [
  "portable-pty",
  "ratatui",
  "tui-term",
+ "unicode-segmentation",
  "walkdir",
 ]
 

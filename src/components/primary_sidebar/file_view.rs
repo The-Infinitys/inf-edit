@@ -295,11 +295,9 @@ impl FileView {
             }
             KeyCode::Enter => {
                 self.enter();
-                // We return true because `enter` on a directory toggles it, which is a handled event.
-                // The event handler will separately check if a file was selected to open it.
                 true
             }
-            KeyCode::Backspace | KeyCode::Char('h') => {
+            KeyCode::Char('h') => { // ← バックスペースは除外
                 self.back();
                 true
             }

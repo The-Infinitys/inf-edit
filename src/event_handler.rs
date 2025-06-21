@@ -26,13 +26,28 @@ pub enum AppEvent {
 pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
         if let Event::Key(key) = event::read()? {
-            // If command palette is active, route all keys to it
+            // コマンドパレット中でもグローバルショートカットは先に判定
             if app.show_command_palette {
-                if key.code == KeyCode::Esc {
-                    app.show_command_palette = false; // Close command palette on Esc
-                } else {
-                    app.command_palette.handle_key(key);
+                // グローバルショートカット
+                if key.modifiers == KeyModifiers::CONTROL
+                    && (key.code == KeyCode::Char('q') || key.code == KeyCode::Char('c'))
+                {
+                    return Ok(AppEvent::Quit);
                 }
+                if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('p') {
+                    app.show_command_palette = false;
+                    return Ok(AppEvent::Continue);
+                }
+                if key.code == KeyCode::Esc {
+                    app.show_command_palette = false;
+                    return Ok(AppEvent::Continue);
+                }
+                // それ以外はコマンドパレットに渡す
+                let event = app.command_palette.handle_key(key);
+                if let crate::components::top_bar::command_palette::CommandPaletteEvent::Exit = event {
+                    app.show_command_palette = false;
+                }
+                // コマンド実行やファイルオープンのイベントもここでハンドリング可能
                 return Ok(AppEvent::Continue);
             }
 
