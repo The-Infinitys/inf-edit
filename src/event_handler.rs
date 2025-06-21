@@ -28,46 +28,58 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             }
 
             // Toggle File View
+            // - If hidden: show and focus.
+            // - If visible and focused: hide and focus editor/panel.
+            // - If visible and not focused: just focus.
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('b') {
-                app.show_file_view = !app.show_file_view;
-                app.active_target = if app.show_file_view {
-                    ActiveTarget::PrimarySideBar
-                } else if app.show_panel {
-                    ActiveTarget::Panel
+                if !app.show_file_view {
+                    app.show_file_view = true;
+                    app.active_target = ActiveTarget::PrimarySideBar;
                 } else {
-                    ActiveTarget::Editor
-                };
+                    if app.active_target == ActiveTarget::PrimarySideBar {
+                        app.show_file_view = false;
+                        app.active_target = if !app.editors.is_empty() {
+                            ActiveTarget::Editor
+                        } else if app.show_panel {
+                            ActiveTarget::Panel
+                        } else {
+                            ActiveTarget::Editor // Fallback
+                        };
+                    } else {
+                        app.active_target = ActiveTarget::PrimarySideBar;
+                    }
+                }
                 return Ok(AppEvent::Continue);
             }
 
             // Toggle Panel (Terminal)
+            // - If hidden: show and focus.
+            // - If visible and focused: hide and focus editor/sidebar.
+            // - If visible and not focused: just focus.
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                if app.active_target == ActiveTarget::Panel {
-                    app.show_panel = false;
-                    if !app.editors.is_empty() {
-                        app.active_target = ActiveTarget::Editor;
-                    } else if app.show_file_view {
-                        // If no editors, fall back to file view if visible
-                        app.active_target = ActiveTarget::PrimarySideBar;
-                    }
-                } else {
+                if !app.show_panel {
                     if app.terminals.is_empty() {
                         app.terminals.push(Tab {
                             content: Term::new()?,
                             title: format!("Term {}", app.terminals.len() + 1),
                         });
                         app.active_terminal_tab = app.terminals.len() - 1;
-                    } else {
-                        if app.terminals[app.active_terminal_tab].content.is_dead() {
-                            app.terminals[app.active_terminal_tab].content = Term::new()?;
-                        }
-                        app.active_terminal_tab = app
-                            .active_terminal_tab
-                            .min(app.terminals.len().saturating_sub(1));
                     }
                     app.show_panel = true;
-                    // Ensure other main content areas are not focused if panel is now the target
                     app.active_target = ActiveTarget::Panel;
+                } else {
+                    if app.active_target == ActiveTarget::Panel {
+                        app.show_panel = false;
+                        app.active_target = if !app.editors.is_empty() {
+                            ActiveTarget::Editor
+                        } else if app.show_file_view {
+                            ActiveTarget::PrimarySideBar
+                        } else {
+                            ActiveTarget::Editor // Fallback
+                        };
+                    } else {
+                        app.active_target = ActiveTarget::Panel;
+                    }
                 }
                 return Ok(AppEvent::Continue);
             }
