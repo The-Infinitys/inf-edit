@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
 use tui_term::widget::PseudoTerminal;
+use crate::event_handler::PtyInput;
 
 pub struct Term {
     parser: Arc<Mutex<Parser>>,
@@ -70,11 +71,6 @@ impl Term {
         })
     }
 
-    pub fn send_input(&self, input: &[u8]) {
-        if let Ok(mut writer) = self.writer.lock() {
-            let _ = writer.write_all(input);
-        }
-    }
     pub fn render_with_block(
         &mut self,
         f: &mut ratatui::Frame,
@@ -107,5 +103,13 @@ impl Term {
     /// プロセスが終了しているか
     pub fn is_dead(&self) -> bool {
         self.dead.load(Ordering::SeqCst)
+    }
+}
+
+impl PtyInput for Term {
+    fn send_input(&self, input: &[u8]) {
+        if let Ok(mut writer) = self.writer.lock() {
+            let _ = writer.write_all(input);
+        }
     }
 }

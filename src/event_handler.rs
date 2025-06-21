@@ -224,38 +224,19 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
 
             // Component-specific key handling
             match app.active_target {
-                ActiveTarget::Editor => {
-                    if let Some(tab) = app.editors.get_mut(app.active_editor_tab) {
-                        // Simplified: direct key code matching for editor-like inputs
-                        // In a real scenario, this would be more complex, potentially passing `key` to `tab.content.handle_key(key)`
-                        match key.code {
-                            KeyCode::Char(c) => tab.content.send_input(c.to_string().as_bytes()),
-                            KeyCode::Enter => tab.content.send_input(b"\n"),
-                            KeyCode::Tab => tab.content.send_input(b"\t"),
-                            KeyCode::Backspace => tab.content.send_input(&[8]),
-                            // Arrow keys, Esc, etc.
-                            _ => {}
-                        }
-                    }
-                }
-                ActiveTarget::Panel => {
-                    if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
-                        match key.code {
-                            KeyCode::Char(c) => tab.content.send_input(c.to_string().as_bytes()),
-                            KeyCode::Enter => tab.content.send_input(b"\n"),
-                            KeyCode::Tab => tab.content.send_input(b"\t"),
-                            KeyCode::Backspace => tab.content.send_input(&[8]),
-                            // Arrow keys, Esc, etc.
-                            _ => {}
-                        }
-                    }
-                }
+                ActiveTarget::Editor => if let Some(tab) = app.editors.get_mut(app.active_editor_tab) {
+                    send_key_to_terminal(&mut tab.content, key);
+                },
+                ActiveTarget::Panel => if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                    send_key_to_terminal(&mut tab.content, key);
+                },
                 ActiveTarget::PrimarySideBar => {
                     if let Some(tab) = app
                         .primary_sidebar_components
                         .get_mut(app.active_primary_sidebar_tab)
                     {
                         if let PrimarySidebarComponent::FileView(f_view) = &mut tab.content {
+                            // This logic is specific to the FileView and does not use the terminal key sending.
                             match key.code {
                                 KeyCode::Down | KeyCode::Char('j') => f_view.next(),
                                 KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
@@ -280,4 +261,67 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
         }
     }
     Ok(AppEvent::Continue)
+}
+
+/// Converts a crossterm KeyEvent into a byte sequence that can be sent to a PTY.
+/// This allows sending special keys like arrows, home, end, etc., to the underlying process.
+///
+/// This function is generic over any type `T` that implements the `PtyInput` trait.
+/// Both `Editor` and `Term` are expected to implement this trait.
+fn send_key_to_terminal<T>(target: &T, key: event::KeyEvent)
+where
+    T: PtyInput + ?Sized,
+{
+    let mut bytes: Vec<u8> = Vec::new();
+
+    // First, handle the key code to get the base byte sequence.
+    let code_bytes = match key.code {
+        KeyCode::Backspace => vec![8],      // Backspace
+        KeyCode::Enter => vec![b'\r'],     // Carriage Return
+        KeyCode::Left => b"\x1b[D".to_vec(),
+        KeyCode::Right => b"\x1b[C".to_vec(),
+        KeyCode::Up => b"\x1b[A".to_vec(),
+        KeyCode::Down => b"\x1b[B".to_vec(),
+        KeyCode::Home => b"\x1b[H".to_vec(),
+        KeyCode::End => b"\x1b[F".to_vec(),
+        KeyCode::PageUp => b"\x1b[5~".to_vec(),
+        KeyCode::PageDown => b"\x1b[6~".to_vec(),
+        KeyCode::Tab => vec![b'\t'],
+        KeyCode::BackTab => b"\x1b[Z".to_vec(),
+        KeyCode::Delete => b"\x1b[3~".to_vec(),
+        KeyCode::Insert => b"\x1b[2~".to_vec(),
+        KeyCode::F(n) => format!("\x1b[{}~", n + 11).into_bytes(), // A common mapping for F-keys
+        KeyCode::Char(c) => c.to_string().into_bytes(),
+        KeyCode::Esc => vec![0x1b],
+        _ => vec![], // Ignore null, caps lock, etc.
+    };
+
+    bytes.extend(code_bytes);
+
+    // Handle modifiers. This is a simplified implementation.
+    // Note: Ctrl+Char is often handled by the terminal itself by converting 'a' to 1, 'b' to 2, etc.
+    // Crossterm might already do this, but if not, we handle it here.
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        if let KeyCode::Char(c @ 'a'..='z') = key.code {
+            // This maps Ctrl+a to 1, Ctrl+b to 2, etc.
+            bytes = vec![(c as u8) - b'a' + 1];
+        }
+    }
+
+    // Alt is often sent as an ESC prefix.
+    if key.modifiers.contains(KeyModifiers::ALT) && !bytes.is_empty() {
+        // Don't add ESC prefix if the key is already ESC
+        if !(key.code == KeyCode::Esc) {
+            bytes.insert(0, 0x1b);
+        }
+    }
+
+    if !bytes.is_empty() {
+        target.send_input(&bytes);
+    }
+}
+
+// Define a trait for types that can receive input bytes for a PTY.
+pub trait PtyInput {
+    fn send_input(&self, bytes: &[u8]);
 }

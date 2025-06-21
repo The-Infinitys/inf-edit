@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
 use tui_term::widget::PseudoTerminal;
+use crate::event_handler::PtyInput;
 
 pub struct Editor {
     parser: Arc<Mutex<Parser>>,
@@ -64,13 +65,6 @@ impl Editor {
             parser,
             writer,
             _pty: pty_pair.master,
-        }
-    }
-
-    /// 入力をエディタプロセスに送る
-    pub fn send_input(&self, input: &[u8]) {
-        if let Ok(mut writer) = self.writer.lock() {
-            let _ = writer.write_all(input);
         }
     }
 
@@ -149,5 +143,14 @@ impl Editor {
         self.parser = parser;
         self.writer = writer;
         self._pty = pty_pair.master;
+    }
+}
+
+impl PtyInput for Editor {
+    /// 入力をエディタプロセスに送る
+    fn send_input(&self, input: &[u8]) {
+        if let Ok(mut writer) = self.writer.lock() {
+            let _ = writer.write_all(input);
+        }
     }
 }
