@@ -3,9 +3,12 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::time::{Duration, Instant};
 
 use crate::{
-    ActiveTarget, Tab,
+    ActiveTarget,
     app::App,
-    components::{main_widget::editor::Editor, panel::term::Term, primary_sidebar::FileView},
+    components::{
+        main_widget::editor::Editor, panel::term::Term,
+        primary_sidebar::component::PrimarySidebarComponent,
+    },
 };
 
 pub enum AppEvent {
@@ -17,7 +20,7 @@ const DEBOUNCE_DURATION: Duration = Duration::from_millis(50); // Debounce for A
 static LAST_CTRL_ALT_EVENT_TIME: std::sync::OnceLock<std::sync::Mutex<Instant>> =
     std::sync::OnceLock::new();
 
-pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
+pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
         if let Event::Key(key) = event::read()? {
             // Global quit shortcuts
@@ -32,12 +35,12 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             // - If visible and focused: hide and focus editor/panel.
             // - If visible and not focused: just focus.
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('b') {
-                if !app.show_file_view {
-                    app.show_file_view = true;
+                if !app.show_primary_sidebar {
+                    app.show_primary_sidebar = true;
                     app.active_target = ActiveTarget::PrimarySideBar;
                 } else {
                     if app.active_target == ActiveTarget::PrimarySideBar {
-                        app.show_file_view = false;
+                        app.show_primary_sidebar = false;
                         app.active_target = if !app.editors.is_empty() {
                             ActiveTarget::Editor
                         } else if app.show_panel {
@@ -58,12 +61,9 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
             // - If visible and not focused: just focus.
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
                 if !app.show_panel {
-                    if app.terminals.is_empty() {
-                        app.terminals.push(Tab {
-                            content: Term::new()?,
-                            title: format!("Term {}", app.terminals.len() + 1),
-                        });
-                        app.active_terminal_tab = app.terminals.len() - 1;
+                    if app.terminals.is_empty() { // Create a terminal if none exist
+                        let term = Term::new()?;
+                        app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
                     }
                     app.show_panel = true;
                     app.active_target = ActiveTarget::Panel;
@@ -72,7 +72,7 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                         app.show_panel = false;
                         app.active_target = if !app.editors.is_empty() {
                             ActiveTarget::Editor
-                        } else if app.show_file_view {
+                        } else if app.show_primary_sidebar {
                             ActiveTarget::PrimarySideBar
                         } else {
                             ActiveTarget::Editor // Fallback
@@ -86,7 +86,16 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
 
             // Toggle Help Widget
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('h') {
-                app.help_widget.toggle_visibility();
+                // This now toggles the visibility of the secondary sidebar, assuming help is there.
+                // A more robust implementation would check if the help tab exists.
+                app.show_secondary_sidebar = !app.show_secondary_sidebar;
+                if app.show_secondary_sidebar {
+                    app.active_target = ActiveTarget::SecondarySideBar;
+                } else if app.active_target == ActiveTarget::SecondarySideBar {
+                    // If we closed the active sidebar, move focus back to editor
+                    app.active_target = ActiveTarget::Editor;
+                }
+
                 return Ok(AppEvent::Continue);
             }
 
@@ -97,11 +106,8 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                 && key.code == KeyCode::Char('j')
             // Changed 'u' back to 'j' as per original intent
             {
-                app.terminals.push(Tab {
-                    content: Term::new()?,
-                    title: format!("Term {}", app.terminals.len() + 1),
-                });
-                app.active_terminal_tab = app.terminals.len() - 1;
+                let term = Term::new()?;
+                app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
                 app.active_target = ActiveTarget::Panel; // Focus the new terminal panel
                 app.show_panel = true; // Ensure panel is visible
                 return Ok(AppEvent::Continue);
@@ -121,8 +127,8 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                     })
                     .lock()
                     .unwrap();
-                if last_time.elapsed() >= DEBOUNCE_DURATION {
-                    app.toggle_secondary_sidebar();
+                if last_time.elapsed() >= DEBOUNCE_DURATION { // Debounce to prevent multiple triggers
+                    app.show_secondary_sidebar = !app.show_secondary_sidebar;
                     *last_time = Instant::now();
                 }
                 return Ok(AppEvent::Continue);
@@ -140,7 +146,7 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                         ActiveTarget::Panel => {
                             if !app.editors.is_empty() {
                                 app.active_target = ActiveTarget::Editor;
-                            } else if app.show_file_view {
+                            } else if app.show_primary_sidebar {
                                 app.active_target = ActiveTarget::PrimarySideBar;
                             }
                         }
@@ -160,11 +166,8 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
 
             // New Editor Tab (Ctrl+N)
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('n') {
-                app.editors.push(Tab {
-                    content: Editor::new(),
-                    title: format!("Editor {}", app.editors.len() + 1),
-                });
-                app.active_editor_tab = app.editors.len() - 1;
+                let editor = Editor::new();
+                app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
                 app.active_target = ActiveTarget::Editor;
                 app.show_panel = false;
                 return Ok(AppEvent::Continue);
@@ -229,22 +232,31 @@ pub fn handle_events(app: &mut App, f_view: &mut FileView) -> Result<AppEvent> {
                         }
                     }
                 }
-                ActiveTarget::PrimarySideBar => match key.code {
-                    KeyCode::Down | KeyCode::Char('j') => f_view.next(),
-                    KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
-                    KeyCode::Enter => {
-                        if let Some(file) = f_view.selected_file() {
-                            if let Some(tab) = app.editors.get_mut(app.active_editor_tab) {
-                                tab.content.open_file(file);
+                ActiveTarget::PrimarySideBar => {
+                    if let Some(tab) = app
+                        .primary_sidebar_components
+                        .get_mut(app.active_primary_sidebar_tab)
+                    {
+                        if let PrimarySidebarComponent::FileView(f_view) = &mut tab.content {
+                            match key.code {
+                                KeyCode::Down | KeyCode::Char('j') => f_view.next(),
+                                KeyCode::Up | KeyCode::Char('k') => f_view.previous(),
+                                KeyCode::Enter => {
+                                    if let Some(path) = f_view.selected_file() {
+                                        let mut editor = Editor::new();
+                                        let title = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                                        editor.open_file(path);
+                                        app.add_editor_tab(editor, title);
+                                    } else {
+                                        f_view.enter();
+                                    }
+                                }
+                                KeyCode::Backspace | KeyCode::Char('h') => f_view.back(),
+                                _ => {}
                             }
-                            app.active_target = ActiveTarget::Editor;
-                        } else {
-                            f_view.enter();
                         }
                     }
-                    KeyCode::Backspace | KeyCode::Char('h') => f_view.back(),
-                    _ => {}
-                },
+                }
                 ActiveTarget::SecondarySideBar => {}
             }
         }

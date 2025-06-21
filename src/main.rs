@@ -11,7 +11,6 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{env, io};
 
 use inf_edit::ActiveTarget;
-use inf_edit::components::primary_sidebar::FileView;
 use inf_edit::components::status::StatusBar;
 
 use inf_edit::app::App;
@@ -25,13 +24,12 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-    let mut f_view = FileView::new(env::current_dir()?);
     let status_bar = StatusBar::new();
     loop {
-        ui::draw(&mut terminal, &mut app, &mut f_view, &status_bar)?;
+        ui::draw(&mut terminal, &mut app, &status_bar)?;
 
         // イベント処理
-        match event_handler::handle_events(&mut app, &mut f_view)? {
+        match event_handler::handle_events(&mut app)? {
             event_handler::AppEvent::Quit => break,
             event_handler::AppEvent::Continue => {}
         }

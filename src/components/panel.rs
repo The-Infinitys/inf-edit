@@ -8,7 +8,7 @@ use ratatui::{
 
 pub mod term;
 use self::term::Term;
-use crate::{ActiveTarget, Tab};
+use crate::Tab;
 
 pub struct Panel<'a> {
     pub terminal_tabs: &'a mut Vec<Tab<Term>>,

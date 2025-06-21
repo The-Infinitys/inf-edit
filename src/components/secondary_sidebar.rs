@@ -1,36 +1,65 @@
+pub mod component;
+use self::component::SecondarySidebarComponent;
+use crate::Tab;
 use ratatui::{
+    prelude::*,
     Frame,
     layout::Rect,
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Tabs},
 };
 
-pub struct SecondarySideBar {
-    pub is_visible: bool,
+pub struct SecondarySideBar<'a> {
+    pub components: &'a mut Vec<Tab<SecondarySidebarComponent>>,
+    pub active_tab_index: usize,
+    is_active: bool,
 }
 
-impl Default for SecondarySideBar {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SecondarySideBar {
-    pub fn new() -> Self {
+impl<'a> SecondarySideBar<'a> {
+    pub fn new(
+        components: &'a mut Vec<Tab<SecondarySidebarComponent>>,
+        active_tab_index: usize,
+        is_active: bool,
+    ) -> Self {
         Self {
-            is_visible: false, // Start hidden by default
+            components,
+            active_tab_index,
+            is_active,
         }
     }
 
-    pub fn toggle_visibility(&mut self) {
-        self.is_visible = !self.is_visible;
-    }
+    pub fn render(&mut self, f: &mut Frame, area: Rect) {
+        let border_style = if self.is_active {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default()
+        };
 
-    pub fn render(&self, f: &mut Frame, area: Rect) {
-        let block = Block::default()
+        let outer_block = Block::default()
             .title("Secondary Sidebar")
-            .borders(Borders::ALL);
-        // .border_style(if self.is_active { ratatui::style::Style::default().fg(ratatui::style::Color::Green) } else { ratatui::style::Style::default() });
-        let paragraph = Paragraph::new("Secondary Sidebar Content").block(block);
-        f.render_widget(paragraph, area);
+            .borders(Borders::ALL)
+            .border_style(border_style);
+        let inner_area = outer_block.inner(area);
+        f.render_widget(outer_block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(2), Constraint::Min(0)]) // Tabs, Content
+            .split(inner_area);
+
+        let tab_titles: Vec<Line> = self
+            .components
+            .iter()
+            .map(|tab| Line::from(tab.title.as_str()))
+            .collect();
+
+        let tabs = Tabs::new(tab_titles)
+            .block(Block::default().borders(Borders::BOTTOM))
+            .select(self.active_tab_index)
+            .highlight_style(Style::default().fg(Color::Green).bold());
+        f.render_widget(tabs, chunks[0]);
+
+        if let Some(active_component) = self.components.get_mut(self.active_tab_index) {
+            active_component.content.render(f, chunks[1]);
+        }
     }
 }

@@ -11,15 +11,15 @@ use crate::{
     components::{
         main_widget::MainWidget,
         panel::Panel,
-        primary_sidebar::{FileView, PrimarySideBar},
+        primary_sidebar::PrimarySideBar,
         status::StatusBar,
+        secondary_sidebar::SecondarySideBar,
     },
 };
 
 pub fn draw(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
     app: &mut App,
-    f_view: &mut FileView,
     status_bar: &StatusBar,
 ) -> Result<()> {
     terminal.draw(|f| {
@@ -39,11 +39,11 @@ pub fn draw(
 
         // 2. Main Content Horizontal Split: (Primary Sidebar) | Center Area | (Secondary Sidebar)
         let mut horizontal_constraints = Vec::new();
-        if app.show_file_view {
+        if app.show_primary_sidebar {
             horizontal_constraints.push(Constraint::Length(30)); // Primary Sidebar width
         }
         horizontal_constraints.push(Constraint::Min(0)); // Center Area (takes remaining space)
-        if app.secondary_sidebar.is_visible {
+        if app.show_secondary_sidebar {
             horizontal_constraints.push(Constraint::Length(30)); // Secondary Sidebar width
         }
 
@@ -55,7 +55,7 @@ pub fn draw(
         // Assign areas based on visibility and the generated chunks
         let mut current_chunk_index = 0;
 
-        let primary_sidebar_area = if app.show_file_view {
+        let primary_sidebar_area = if app.show_primary_sidebar {
             let area = main_horizontal_layout_chunks[current_chunk_index]; // Primary is the first chunk if visible
             current_chunk_index += 1; // Move index past primary
             area
@@ -67,7 +67,7 @@ pub fn draw(
         current_chunk_index += 1; // Move index past center
 
         // The secondary sidebar area is the last chunk if visible.
-        let secondary_sidebar_area = if app.secondary_sidebar.is_visible {
+        let secondary_sidebar_area = if app.show_secondary_sidebar {
             // Secondary is the next chunk if visible
             // Use get() with bounds check just in case, though with Min(0) in the middle, it should be the last chunk if visible.
             main_horizontal_layout_chunks[current_chunk_index]
@@ -88,22 +88,23 @@ pub fn draw(
             .split(center_area);
 
         // Render PrimarySideBar (FileView)
-        if app.show_file_view {
+        if app.show_primary_sidebar {
             let mut primary_sidebar = PrimarySideBar::new(
-                f_view, app.active_target == ActiveTarget::PrimarySideBar
+                &mut app.primary_sidebar_components,
+                app.active_primary_sidebar_tab,
+                app.active_target == ActiveTarget::PrimarySideBar,
             );
-            // Example: Apply active style if PrimarySideBar is focused
-            // let block = if app.active_target == ActiveTarget::PrimarySideBar {
-            //     Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Green))
-            // } else {
-            //     Block::default().borders(Borders::ALL)
-            // };
             primary_sidebar.render(f, primary_sidebar_area);
         }
 
         // Render SecondarySideBar
-        if app.secondary_sidebar.is_visible {
-            app.secondary_sidebar.render(f, secondary_sidebar_area);
+        if app.show_secondary_sidebar {
+            let mut secondary_sidebar = SecondarySideBar::new(
+                &mut app.secondary_sidebar_components,
+                app.active_secondary_sidebar_tab,
+                app.active_target == ActiveTarget::SecondarySideBar,
+            );
+            secondary_sidebar.render(f, secondary_sidebar_area);
         }
 
         // Assign Main Widget and Panel areas from the center vertical split
@@ -137,8 +138,6 @@ pub fn draw(
         status_bar.render(f, status_area);
 
         // Render Help widget on top, if visible. It needs the full frame area to calculate its centered position.
-        // It needs the full frame area to calculate its centered position.
-        app.help_widget.render(f, f.area());
     })?;
     Ok(())
 }
