@@ -2,6 +2,7 @@ pub mod file_view;
 pub use self::file_view::FileView;
 
 pub mod search;
+pub mod git; // Add this line to expose the git module
 pub mod component;
 use self::component::PrimarySidebarComponent;
 use crate::Tab;
@@ -39,6 +40,7 @@ impl<'a> PrimarySideBar<'a> {
                 let icon = match tab.content {
                     PrimarySidebarComponent::FileView(_) => "📁",
                     PrimarySidebarComponent::Search(_) => "🔍",
+                    PrimarySidebarComponent::Git(_) => "🐙", // Add this arm for GitWidget
                 };
                 let text = Span::from(format!("{} {}", icon, tab.title));
                 let mut list_item = ListItem::new(text);

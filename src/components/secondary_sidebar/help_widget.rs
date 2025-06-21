@@ -1,74 +1,43 @@
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
-    text::{Line, Text},
-    widgets::{Block, Borders, Paragraph},
+    layout::Rect,
+    widgets::{Block, Borders, List, ListItem},
 };
 
+#[derive(Default)]
 pub struct HelpWidget {
-    pub is_visible: bool,
-}
-
-impl Default for HelpWidget {
-    fn default() -> Self {
-        Self::new()
-    }
+    is_visible: bool,
 }
 
 impl HelpWidget {
     pub fn new() -> Self {
-        Self { is_visible: false }
+        Self::default()
     }
 
-    pub fn toggle_visibility(&mut self) {
+    pub fn toggle_visibility(&mut self) -> bool {
         self.is_visible = !self.is_visible;
+        self.is_visible // Return the new state
     }
 
     pub fn render(&self, f: &mut Frame, app_area: Rect) {
         if self.is_visible {
-            let popup_height = 10u16; // Desired popup height
-            let popup_width = 50u16; // Desired popup width
+            // The help widget now renders directly into the area provided by the sidebar.
+            // No need for centering logic.
+            let help_items = vec![
+                ListItem::new("Ctrl+Q: Quit"),
+                ListItem::new("Ctrl+B: Toggle File View"),
+                ListItem::new("Ctrl+J: Toggle Terminal"),
+                ListItem::new("Ctrl+K: Switch Focus"),
+                ListItem::new("Ctrl+N: New Editor"),
+                ListItem::new("Ctrl+T: Next Editor/Term Tab"),
+                ListItem::new("Ctrl+< / Ctrl+>: Prev/Next Sidebar Tab"),
+                ListItem::new("Ctrl+Alt+B: Toggle Help"),
+            ];
 
-            let vertical_margin = (app_area.height.saturating_sub(popup_height)) / 2;
-            let horizontal_margin = (app_area.width.saturating_sub(popup_width)) / 2;
+            let help_list = List::new(help_items)
+                .block(Block::default().title("Help").borders(Borders::ALL));
 
-            let popup_layout = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(vertical_margin),
-                    Constraint::Length(popup_height),
-                    Constraint::Length(vertical_margin),
-                ])
-                .split(app_area);
-
-            let popup_area = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([
-                    Constraint::Length(horizontal_margin),
-                    Constraint::Length(popup_width),
-                    Constraint::Length(horizontal_margin),
-                ])
-                .split(popup_layout[1])[1]; // Apply horizontal layout to the middle vertical chunk
-
-            let help_text = Text::from(vec![
-                Line::from("Ctrl+Q: Quit"),
-                Line::from("Ctrl+B: Toggle File View"),
-                Line::from("Ctrl+J: Toggle/Focus Terminal Panel"),
-                Line::from("Ctrl+Shift+J: New Terminal Tab"),
-                Line::from("Ctrl+K: Switch Editor/Panel Focus"),
-                Line::from("Ctrl+N: New Editor Tab"),
-                Line::from("Ctrl+T: Switch Active Tab (Editor/Panel)"),
-                Line::from("Ctrl+Shift+Left/Right: Switch Terminal Tabs (when Panel active)"),
-                Line::from("Ctrl+H: Toggle Help (this)"),
-            ]);
-
-            let help_paragraph = Paragraph::new(help_text)
-                .block(Block::default().title("Help").borders(Borders::ALL))
-                .style(Style::default().fg(Color::White).bg(Color::DarkGray)) // Changed bg for better visibility
-                .alignment(Alignment::Left);
-
-            f.render_widget(help_paragraph, popup_area);
+            f.render_widget(help_list, app_area);
         }
     }
 }

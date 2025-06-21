@@ -5,7 +5,7 @@ use crate::{
     components::{
         main_widget::editor::Editor,
         panel::term::Term,
-        primary_sidebar::{component::PrimarySidebarComponent, search::SearchWidget, FileView},
+        primary_sidebar::{component::PrimarySidebarComponent, search::SearchWidget, FileView, git::GitWidget}, // Add git::GitWidget here
         secondary_sidebar::help_widget::HelpWidget,
         secondary_sidebar::component::SecondarySidebarComponent,
     },
@@ -55,6 +55,10 @@ impl App {
                     SearchWidget::new()
                 ),
                 title: "Search".to_string(),
+            },
+            Tab {
+                content: PrimarySidebarComponent::Git(GitWidget::new()),
+                title: "Git".to_string(),
             }],
             secondary_sidebar_components: vec![Tab {
                 content: SecondarySidebarComponent::Help(HelpWidget::new()),

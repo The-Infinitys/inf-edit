@@ -4,21 +4,21 @@ use ratatui::{
 };
 
 #[derive(Default)]
-pub struct SearchWidget {}
+pub struct GitWidget {}
 
-impl SearchWidget {
+impl GitWidget {
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect, is_active: bool) {
-        let mut search_block = Block::default()
-            .title("Search")
+        let mut git_block = Block::default()
+            .title("Git")
             .borders(Borders::ALL);
         if is_active {
-            search_block = search_block.style(Style::default().fg(Color::Yellow));
+            git_block = git_block.style(Style::default().fg(Color::Yellow));
         }
-        let text = Paragraph::new("Search functionality will be here.").block(search_block);
+        let text = Paragraph::new("Git functionality will be here.").block(git_block);
         f.render_widget(text, area);
     }
 }
