@@ -8,7 +8,7 @@ use crossterm::{
 use inf_edit::event_handler;
 use inf_edit::ui;
 use ratatui::{Terminal, backend::CrosstermBackend};
-use std::{env, io};
+use std::io;
 
 use inf_edit::ActiveTarget;
 use inf_edit::components::status::StatusBar;

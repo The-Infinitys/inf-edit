@@ -9,11 +9,8 @@ use crate::{
     ActiveTarget,
     app::App,
     components::{
-        main_widget::MainWidget,
-        panel::Panel,
-        primary_sidebar::PrimarySideBar,
-        status::StatusBar,
-        secondary_sidebar::SecondarySideBar,
+        main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar,
+        secondary_sidebar::SecondarySideBar, status::StatusBar,
     },
 };
 
@@ -38,8 +35,8 @@ pub fn draw(
         let status_area = main_vertical_layout[1];
 
         // 2. Main Content Horizontal Split: (Primary Sidebar) | Center Area | (Secondary Sidebar)
-        let TABS_WIDTH = 12;
-        let SIDEBAR_CONTENT_WIDTH = 30;
+        const TABS_WIDTH: u16 = 12;
+        const SIDEBAR_CONTENT_WIDTH: u16 = 30;
 
         let mut horizontal_constraints = Vec::new();
         // Area for the vertical tabs of the primary sidebar, always visible
@@ -134,7 +131,8 @@ pub fn draw(
                 &mut app.editors,
                 app.active_editor_tab,
                 app.active_target == ActiveTarget::Editor,
-            ).render(f, main_widget_area);
+            )
+            .render(f, main_widget_area);
         }
 
         // Render the Panel

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 
 use crate::{
     ActiveTarget,
@@ -16,9 +16,9 @@ pub enum AppEvent {
     Continue,
 }
 
-const DEBOUNCE_DURATION: Duration = Duration::from_millis(50); // Debounce for AltGr or similar issues
-static LAST_CTRL_ALT_EVENT_TIME: std::sync::OnceLock<std::sync::Mutex<Instant>> =
-    std::sync::OnceLock::new();
+// const DEBOUNCE_DURATION: Duration = Duration::from_millis(50); // Debounce for AltGr or similar issues
+// static LAST_CTRL_ALT_EVENT_TIME: std::sync::OnceLock<std::sync::Mutex<Instant>> =
+//     std::sync::OnceLock::new();
 
 pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
