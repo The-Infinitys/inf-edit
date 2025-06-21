@@ -101,8 +101,8 @@ impl Term {
         let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
         f.render_widget(pseudo_term, area); // area: このウィジェットのRect
         let (cur_y, cur_x) = parser.screen().cursor_position(); // This is 1-based (y, x)
-        let cursor_x = inner_area.x + cur_x ;
-        let cursor_y = inner_area.y + cur_y ;
+        let cursor_x = inner_area.x + cur_x - 1;
+        let cursor_y = inner_area.y + cur_y - 1;
         f.set_cursor_position((cursor_x, cursor_y));
     }
 

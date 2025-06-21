@@ -25,6 +25,40 @@ pub enum AppEvent {
 pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
         if let Event::Key(key) = event::read()? {
+            // --- Check for dead processes and remove tabs ---
+            // Editors
+            if !app.editors.is_empty() && app.editors[app.active_editor_tab].content.is_dead() {
+                app.editors.remove(app.active_editor_tab);
+                if app.editors.is_empty() {
+                    // If all editors are closed, create a new default one
+                    app.add_editor_tab(Editor::new(), "Editor 1".to_string());
+                    app.active_editor_tab = 0;
+                } else if app.active_editor_tab >= app.editors.len() {
+                    app.active_editor_tab = app.editors.len() - 1;
+                }
+                // If the active target was editor, keep it focused
+                if app.active_target == ActiveTarget::Editor {
+                    return Ok(AppEvent::Continue);
+                }
+            }
+
+            // Terminals
+            if !app.terminals.is_empty() && app.terminals[app.active_terminal_tab].content.is_dead() {
+                app.terminals.remove(app.active_terminal_tab);
+                if app.terminals.is_empty() {
+                    // If all terminals are closed, hide the panel and switch focus
+                    app.show_panel = false;
+                    app.active_target = ActiveTarget::Editor; // Fallback to editor
+                } else if app.active_terminal_tab >= app.terminals.len() {
+                    app.active_terminal_tab = app.terminals.len() - 1;
+                }
+                // If the active target was panel, keep it focused
+                if app.active_target == ActiveTarget::Panel {
+                    return Ok(AppEvent::Continue);
+                }
+            }
+            // --- End of dead process check ---
+
             // Global quit shortcuts
             if key.modifiers == KeyModifiers::CONTROL
                 && (key.code == KeyCode::Char('q') || key.code == KeyCode::Char('c'))
@@ -131,11 +165,11 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 return Ok(AppEvent::Continue);
             }
 
-            // New Terminal Tab (Ctrl+Shift+J)
+            // New Terminal Tab (Ctrl+Shift+N)
             if key
                 .modifiers
                 .contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                && key.code == KeyCode::Char('j')
+                && key.code == KeyCode::Char('n')
             // Changed 'u' back to 'j' as per original intent
             {
                 let cwd_for_new_term = app.primary_sidebar_components
@@ -155,33 +189,36 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 return Ok(AppEvent::Continue);
             }
 
-            // Switch focus (Ctrl+K)
+            // Switch focus (Ctrl+K) - Cycle through visible and non-empty targets
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {
-                if app.show_panel {
-                    match app.active_target {
-                        ActiveTarget::Editor => {
-                            if app.show_panel && !app.terminals.is_empty() {
-                                app.active_target = ActiveTarget::Panel;
-                            }
-                        }
-                        ActiveTarget::Panel => {
-                            if !app.editors.is_empty() {
-                                app.active_target = ActiveTarget::Editor;
-                            } else if app.show_primary_sidebar {
-                                app.active_target = ActiveTarget::PrimarySideBar;
-                            }
-                        }
-                        ActiveTarget::PrimarySideBar => {
-                            if !app.editors.is_empty() {
-                                app.active_target = ActiveTarget::Editor;
-                            } else if !app.terminals.is_empty() {
-                                app.active_target = ActiveTarget::Panel;
-                                app.show_panel = true;
-                            }
-                        }
-                        ActiveTarget::SecondarySideBar => {}
-                    }
+                let mut targets = Vec::new();
+                if !app.editors.is_empty() {
+                    targets.push(ActiveTarget::Editor);
                 }
+                if app.show_panel && !app.terminals.is_empty() {
+                    targets.push(ActiveTarget::Panel);
+                }
+                if app.show_primary_sidebar {
+                    targets.push(ActiveTarget::PrimarySideBar);
+                }
+                // Secondary sidebar is usually a modal, not part of main focus cycle.
+
+                if targets.is_empty() {
+                    return Ok(AppEvent::Continue); // No targets to switch to
+                }
+
+                let current_idx = targets.iter().position(|&t| t == app.active_target);
+                let next_idx = match current_idx {
+                    Some(idx) => (idx + 1) % targets.len(),
+                    None => 0, // If current target is not in the list (e.g., SecondarySidebar or hidden), start from first available
+                };
+                app.active_target = targets[next_idx];
+
+                // Ensure panel visibility if we switch to it
+                if app.active_target == ActiveTarget::Panel && !app.show_panel {
+                    app.show_panel = true;
+                }
+
                 return Ok(AppEvent::Continue);
             }
 
@@ -189,6 +226,38 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('n') {
                 let editor = Editor::new();
                 app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
+                app.active_target = ActiveTarget::Editor;
+                app.show_panel = false; // Ensure panel is hidden when new editor is opened
+                return Ok(AppEvent::Continue);
+            }
+
+            // Close Tab (Ctrl+W)
+            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
+                match app.active_target {
+                    ActiveTarget::Editor => {
+                        if !app.editors.is_empty() {
+                            app.editors.remove(app.active_editor_tab);
+                            if app.editors.is_empty() {
+                                app.add_editor_tab(Editor::new(), "Editor 1".to_string()); // Always keep at least one editor
+                                app.active_editor_tab = 0;
+                            } else if app.active_editor_tab >= app.editors.len() {
+                                app.active_editor_tab = app.editors.len() - 1;
+                            }
+                        }
+                    }
+                    ActiveTarget::Panel => {
+                        if !app.terminals.is_empty() {
+                            app.terminals.remove(app.active_terminal_tab);
+                            if app.terminals.is_empty() {
+                                app.show_panel = false; // Hide panel if no terminals left
+                                app.active_target = ActiveTarget::Editor; // Switch focus
+                            } else if app.active_terminal_tab >= app.terminals.len() {
+                                app.active_terminal_tab = app.terminals.len() - 1;
+                            }
+                        }
+                    }
+                    _ => {} // Do nothing for sidebars
+                }
                 app.active_target = ActiveTarget::Editor;
                 app.show_panel = false;
                 return Ok(AppEvent::Continue);
