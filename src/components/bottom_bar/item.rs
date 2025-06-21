@@ -36,6 +36,12 @@ pub struct GitInfoItem {
     // No fields needed, as it fetches data dynamically
 }
 
+impl Default for GitInfoItem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GitInfoItem {
     pub fn new() -> Self {
         Self {}
@@ -82,6 +88,12 @@ impl BottomBarItem for GitInfoItem {
 /// Renders the current time.
 pub struct CurrentTimeItem {}
 
+impl Default for CurrentTimeItem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CurrentTimeItem {
     pub fn new() -> Self { Self {} }
     fn get_current_time(&self) -> String {
@@ -100,6 +112,12 @@ impl BottomBarItem for CurrentTimeItem {
 
 /// Renders resource usage (placeholder).
 pub struct ResourceUsageItem {}
+
+impl Default for ResourceUsageItem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ResourceUsageItem {
     pub fn new() -> Self { Self {} }
