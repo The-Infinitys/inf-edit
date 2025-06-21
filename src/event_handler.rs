@@ -228,10 +228,10 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             // Component-specific key handling
             match app.active_target {
                 ActiveTarget::Editor => if let Some(tab) = app.editors.get_mut(app.active_editor_tab) {
-                    send_key_to_terminal(&mut tab.content, key);
+                    send_key_to_terminal(&tab.content, key);
                 },
                 ActiveTarget::Panel => if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
-                    send_key_to_terminal(&mut tab.content, key);
+                    send_key_to_terminal(&tab.content, key);
                 },
                 ActiveTarget::PrimarySideBar => {
                     if let Some(tab) = app
