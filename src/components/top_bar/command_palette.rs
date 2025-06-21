@@ -309,56 +309,15 @@ impl CommandPalette {
         let input_paragraph = Paragraph::new(input_line).block(block.clone());
         f.render_widget(input_paragraph, area);
 
-        // カーソル位置を「表示幅」で計算（Span::widthを使う）
+        // カーソル位置
         let graphemes: Vec<&str> = self.input.graphemes(true).collect();
         let cursor_str = graphemes[..self.cursor_grapheme].concat();
         let cursor_width = Span::raw(cursor_str).width();
         f.set_cursor_position((area.x + cursor_width as u16 + 1, area.y + 1));
 
-        // 候補リスト表示
-        let max_height = area.height.saturating_sub(3);
-        let list_height = self.calc_command_list_height(max_height);
-
-        let list_area = Rect {
-            x: area.x,
-            y: area.y + 3,
-            width: area.width, // パレット全体の横幅に合わせる
-            height: list_height,
-        };
-
-        let items: Vec<ListItem> = match self.mode {
-            PaletteMode::Command => self.command_candidates.iter().enumerate().map(|(i, c)| {
-                if i == self.selected {
-                    ListItem::new(c.clone()).style(Style::default().fg(Color::Yellow))
-                } else {
-                    ListItem::new(c.clone())
-                }
-            }).collect(),
-            PaletteMode::File => self.file_candidates.iter().enumerate().map(|(i, name)| {
-                if i == self.selected {
-                    ListItem::new(name.clone()).style(Style::default().fg(Color::Green))
-                } else {
-                    ListItem::new(name.clone())
-                }
-            }).collect(),
-        };
-        let list = List::new(items)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(match self.mode {
-                        PaletteMode::Command => "Commands",
-                        PaletteMode::File => "Files",
-                    })
-                    .style(Style::default().bg(Color::Black)),
-            )
-            .highlight_style(Style::default().bg(Color::DarkGray));
-        f.render_widget(list, list_area);
-
-        // input_mode に応じた描画
+        // input_modeがSomeなら、専用UIのみ描画してreturn
         if let Some(input_mode) = &self.input_mode {
             let mode_block = Block::default().borders(Borders::ALL).title("Input Mode");
-
             match input_mode {
                 InputMode::StringInput { prompt } => {
                     let prompt_line = Line::from(prompt.as_str());
@@ -419,6 +378,47 @@ impl CommandPalette {
                     f.render_widget(list, area);
                 }
             }
+            return; // 通常の候補リストは描画しない
         }
+
+        // 通常のコマンドパレット候補リスト描画
+        let max_height = area.height.saturating_sub(3);
+        let list_height = self.calc_command_list_height(max_height);
+
+        let list_area = Rect {
+            x: area.x,
+            y: area.y + 3,
+            width: area.width,
+            height: list_height,
+        };
+
+        let items: Vec<ListItem> = match self.mode {
+            PaletteMode::Command => self.command_candidates.iter().enumerate().map(|(i, c)| {
+                if i == self.selected {
+                    ListItem::new(c.clone()).style(Style::default().fg(Color::Yellow))
+                } else {
+                    ListItem::new(c.clone())
+                }
+            }).collect(),
+            PaletteMode::File => self.file_candidates.iter().enumerate().map(|(i, name)| {
+                if i == self.selected {
+                    ListItem::new(name.clone()).style(Style::default().fg(Color::Green))
+                } else {
+                    ListItem::new(name.clone())
+                }
+            }).collect(),
+        };
+        let list = List::new(items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(match self.mode {
+                        PaletteMode::Command => "Commands",
+                        PaletteMode::File => "Files",
+                    })
+                    .style(Style::default().bg(Color::Black)),
+            )
+            .highlight_style(Style::default().bg(Color::DarkGray));
+        f.render_widget(list, list_area);
     }
 }

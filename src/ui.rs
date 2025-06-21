@@ -197,6 +197,18 @@ pub fn draw(
         bottom_bar_instance.render(f, status_area, true);
 
         // Render Help widget on top, if visible. It needs the full frame area to calculate its centered position.
+
+        // コマンドパレットの描画
+        if app.show_command_palette {
+            let size = f.area();
+            let palette_area = Rect {
+                x: (size.width.saturating_sub(40)) / 2,
+                y: (size.height.saturating_sub(10)) / 2,
+                width: 40,
+                height: 10,
+            };
+            app.command_palette.render(f, palette_area);
+        }
     })?;
     Ok(())
 }
