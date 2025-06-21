@@ -1,6 +1,5 @@
 use ratatui::{
-    prelude::*,
-    style::{Color, Style}, // Keep for Span::styled
+    prelude::*, // Keep for Span::styled
     text::Line,
     widgets::Paragraph,
 };

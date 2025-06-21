@@ -1,6 +1,5 @@
 use ratatui::{
-    prelude::*,
-    style::{Color, Style}, // Keep for implicit use by widgets
+    prelude::*, // Keep for implicit use by widgets
     text::Line,
     widgets::{Block, Borders, Paragraph},
 };
