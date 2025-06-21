@@ -367,6 +367,7 @@ dependencies = [
  "chrono",
  "colored",
  "crossterm 0.29.0",
+ "once_cell",
  "portable-pty",
  "ratatui",
  "tui-term",

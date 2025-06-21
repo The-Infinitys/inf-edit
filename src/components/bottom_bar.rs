@@ -25,7 +25,7 @@ impl BottomBar {
 
     pub fn render(&self, f: &mut Frame, area: Rect, _is_active: bool) {
         let block = Block::default()
-            .borders(Borders::TOP)
+            .borders(Borders::NONE)
             .border_style(Style::default().fg(Color::DarkGray));
         f.render_widget(&block, area);
 

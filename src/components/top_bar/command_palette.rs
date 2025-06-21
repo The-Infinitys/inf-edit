@@ -1,3 +1,4 @@
+use crate::components::notification::{send_notification, NotificationType};
 use ratatui::{
     prelude::*,
     text::{Line, Span},
@@ -116,13 +117,50 @@ impl CommandPalette {
             KeyCode::Enter => {
                 match self.mode {
                     PaletteMode::Command => {
+                        if self.command_candidates.is_empty() {
+                            send_notification(
+                                "Error: No command candidates",
+                                NotificationType::Error,
+                            );
+                            return CommandPaletteEvent::None;
+                        }
                         if let Some(cmd) = self.command_candidates.get(self.selected) {
-                            return CommandPaletteEvent::ExecuteCommand(cmd.clone());
+                            let known_commands = [
+                                ">workbench.action.files.newUntitledFile",
+                                ">workbench.action.files.openFile",
+                                ">workbench.action.files.save",
+                                ">workbench.action.closeActiveEditor",
+                                ">workbench.action.quickOpen",
+                            ];
+                            if known_commands.contains(&cmd.as_str()) {
+                                return CommandPaletteEvent::ExecuteCommand(cmd.clone());
+                            } else {
+                                send_notification(
+                                    format!("Error: Unknown Command: {}", cmd),
+                                    NotificationType::Error,
+                                );
+                                return CommandPaletteEvent::None;
+                            }
                         }
                     }
                     PaletteMode::File => {
+                        if self.file_candidates.is_empty() {
+                            send_notification(
+                                "Error: No file candidates",
+                                NotificationType::Error,
+                            );
+                            return CommandPaletteEvent::None;
+                        }
                         if let Some(file) = self.file_candidates.get(self.selected) {
-                            return CommandPaletteEvent::OpenFile(file.clone());
+                            if std::path::Path::new(file).exists() {
+                                return CommandPaletteEvent::OpenFile(file.clone());
+                            } else {
+                                send_notification(
+                                    "Error: Couldn't find file",
+                                    NotificationType::Error,
+                                );
+                                return CommandPaletteEvent::None;
+                            }
                         }
                     }
                 }
@@ -136,25 +174,31 @@ impl CommandPalette {
         if self.input.starts_with('>') {
             self.mode = PaletteMode::Command;
             let q = self.input.trim_start_matches('>').to_lowercase();
-            self.command_candidates = vec![
+            let all_commands = vec![
                 ">workbench.action.files.newUntitledFile".to_string(),
                 ">workbench.action.files.openFile".to_string(),
                 ">workbench.action.files.save".to_string(),
                 ">workbench.action.closeActiveEditor".to_string(),
                 ">workbench.action.quickOpen".to_string(),
-            ]
-            .into_iter()
-            .filter(|c| q.is_empty() || c.to_lowercase().contains(&q))
-            .collect();
+            ];
+            self.command_candidates = if q.is_empty() {
+                all_commands
+            } else {
+                all_commands
+                    .into_iter()
+                    .filter(|c| c.to_lowercase().contains(&q))
+                    .collect()
+            };
             self.selected = 0;
         } else {
             self.mode = PaletteMode::File;
-            let q = self.input.as_str();
+            let q = self.input.as_str().to_lowercase();
             let mut files = Vec::new();
             if let Ok(entries) = fs::read_dir(".") {
                 for entry in entries.flatten() {
                     let name = entry.file_name().to_string_lossy().to_string();
-                    if q.is_empty() || name.contains(q) {
+                    // 大文字小文字無視で部分一致
+                    if q.is_empty() || name.to_lowercase().contains(&q) {
                         files.push(name);
                     }
                 }
@@ -181,7 +225,7 @@ impl CommandPalette {
             x: area.x,
             y: area.y + 3,
             width: area.width,
-            height: area.height.saturating_sub(3),
+            height: area.height.saturating_sub(3).max(5), // 高さを最低5に
         };
 
         let items: Vec<ListItem> = match self.mode {
@@ -200,7 +244,17 @@ impl CommandPalette {
                 }
             }).collect(),
         };
-        let list = List::new(items).block(Block::default().borders(Borders::NONE));
+        let list = List::new(items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(match self.mode {
+                        PaletteMode::Command => "Commands",
+                        PaletteMode::File => "Files",
+                    })
+                    .style(Style::default().bg(Color::Black)),
+            )
+            .highlight_style(Style::default().bg(Color::DarkGray));
         f.render_widget(list, list_area);
     }
 }
