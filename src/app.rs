@@ -1,7 +1,9 @@
 use crate::{
     ActiveTarget, Tab,
     components::{
-        editor::Editor, help_widget::HelpWidget, secondary_sidebar::SecondarySideBar, term::Term,
+        help_widget::HelpWidget,
+        main_widget::editor::Editor,
+        panel::term::Term, secondary_sidebar::SecondarySideBar,
     },
 };
 

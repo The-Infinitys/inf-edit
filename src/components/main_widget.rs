@@ -6,8 +6,9 @@ use ratatui::{
     widgets::{Block, Borders, Tabs},
 };
 
-use super::editor::Editor;
-use crate::{ActiveTarget, Tab}; // Assuming Tab and ActiveTarget are in crate root (lib.rs)
+pub mod editor;
+use self::editor::Editor;
+use crate::{ActiveTarget, Tab};
 
 pub struct MainWidget<'a> {
     pub editor_tabs: &'a mut Vec<Tab<Editor>>,

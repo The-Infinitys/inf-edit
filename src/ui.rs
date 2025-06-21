@@ -8,9 +8,11 @@ use ratatui::{
 use crate::{
     ActiveTarget,
     app::App,
-    components::status::StatusBar,
     components::{
-        file_view::FileView, main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar,
+        main_widget::MainWidget,
+        panel::Panel,
+        primary_sidebar::{FileView, PrimarySideBar},
+        status::StatusBar,
     },
 };
 

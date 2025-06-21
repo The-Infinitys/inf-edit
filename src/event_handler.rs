@@ -5,7 +5,9 @@ use std::time::{Duration, Instant};
 use crate::{
     ActiveTarget, Tab,
     app::App,
-    components::{editor::Editor, file_view::FileView, term::Term},
+    components::{
+        main_widget::editor::Editor, panel::term::Term, primary_sidebar::file_view::FileView,
+    },
 };
 
 pub enum AppEvent {

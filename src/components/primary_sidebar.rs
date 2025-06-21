@@ -1,5 +1,6 @@
-use super::file_view::FileView;
+pub mod file_view;
 use ratatui::{Frame, layout::Rect, widgets::Block};
+pub use self::file_view::FileView;
 
 pub struct PrimarySideBar<'a> {
     file_view: &'a mut FileView,

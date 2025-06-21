@@ -6,7 +6,8 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem},
 };
 
-use super::term::Term; // Assuming Term is in the same module or accessible
+pub mod term;
+use self::term::Term;
 use crate::{ActiveTarget, Tab};
 
 pub struct Panel<'a> {

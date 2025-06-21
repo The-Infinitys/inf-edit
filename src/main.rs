@@ -11,7 +11,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{env, io};
 
 use inf_edit::ActiveTarget;
-use inf_edit::components::file_view::FileView;
+use inf_edit::components::primary_sidebar::FileView;
 use inf_edit::components::status::StatusBar;
 
 use inf_edit::app::App;
