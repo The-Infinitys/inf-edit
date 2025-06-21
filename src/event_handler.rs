@@ -26,7 +26,7 @@ pub enum AppEvent {
 pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
         if let Event::Key(key) = event::read()? {
-            // コマンドパレット中でもグローバルショートカットは先に判定
+            // コマンドパレット中の処理
             if app.show_command_palette {
                 // グローバルショートカット
                 if key.modifiers == KeyModifiers::CONTROL
@@ -44,10 +44,26 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                 }
                 // それ以外はコマンドパレットに渡す
                 let event = app.command_palette.handle_key(key);
-                if let crate::components::top_bar::command_palette::CommandPaletteEvent::Exit = event {
-                    app.show_command_palette = false;
+
+                match event {
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::Exit => {
+                        app.show_command_palette = false;
+                    }
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::ExecuteCommand(_cmd_name) => {
+                        // ここでパレットを閉じるなどのUI遷移を必ず行う
+                        app.show_command_palette = false;
+                        // 追加で必要な処理があればここに
+                    }
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::OpenFile(path) => {
+                        // ファイルを開く処理例
+                        let mut editor = Editor::new();
+                        let title = path.clone();
+                        editor.open_file(path.into());
+                        app.add_editor_tab(editor, title);
+                        app.show_command_palette = false;
+                    }
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::None => {}
                 }
-                // コマンド実行やファイルオープンのイベントもここでハンドリング可能
                 return Ok(AppEvent::Continue);
             }
 

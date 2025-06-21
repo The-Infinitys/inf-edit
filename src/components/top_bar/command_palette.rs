@@ -146,22 +146,6 @@ impl CommandPalette {
         self.selected = 0;
     }
 
-    /// コマンド候補リストの最大幅を計算
-    fn calc_command_list_width(&self, min_width: u16, max_width: u16) -> u16 {
-        let mut width = min_width;
-        let items = match self.mode {
-            PaletteMode::Command => &self.command_candidates,
-            PaletteMode::File => &self.file_candidates,
-        };
-        for item in items {
-            let w = item.chars().count() as u16 + 4; // 余白分+4
-            if w > width {
-                width = w;
-            }
-        }
-        width.min(max_width)
-    }
-
     /// コマンド候補リストの最大高さを計算（縦幅を可変にする）
     fn calc_command_list_height(&self, max_height: u16) -> u16 {
         let items_len = match self.mode {
@@ -258,8 +242,12 @@ impl CommandPalette {
             KeyCode::Enter => {
                 match self.mode {
                     PaletteMode::Command => {
-                        self.execute_selected_command();
-                        CommandPaletteEvent::None
+                        if let Some(cmd_name) = self.command_candidates.get(self.selected).cloned() {
+                            self.execute_selected_command();
+                            CommandPaletteEvent::ExecuteCommand(cmd_name)
+                        } else {
+                            CommandPaletteEvent::None
+                        }
                     }
                     PaletteMode::File => {
                         if let Some(file) = self.file_candidates.get(self.selected) {
@@ -328,14 +316,13 @@ impl CommandPalette {
         f.set_cursor_position((area.x + cursor_width as u16 + 1, area.y + 1));
 
         // 候補リスト表示
-        let fixed_width = 40; // 横幅は固定
-        let max_height = area.height.saturating_sub(3).max(5);
+        let max_height = area.height.saturating_sub(3);
         let list_height = self.calc_command_list_height(max_height);
 
         let list_area = Rect {
             x: area.x,
             y: area.y + 3,
-            width: fixed_width,
+            width: area.width, // パレット全体の横幅に合わせる
             height: list_height,
         };
 
