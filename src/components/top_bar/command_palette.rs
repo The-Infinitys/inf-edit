@@ -3,7 +3,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, List, ListItem},
 };
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 use std::fs;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -26,6 +26,12 @@ pub enum CommandPaletteEvent {
     Exit,
     ExecuteCommand(String),
     OpenFile(String),
+}
+
+impl Default for CommandPalette {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CommandPalette {
