@@ -2,15 +2,15 @@ use chrono::{DateTime, Local};
 use colored::*;
 use ratatui::{Frame, layout::Rect, text::Line, widgets::Paragraph};
 use std::{process::Command, time::SystemTime};
-pub struct StatusBar {}
+pub struct BottomBar {}
 
-impl Default for StatusBar {
+impl Default for BottomBar {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl StatusBar {
+impl BottomBar {
     pub fn new() -> Self {
         Self {}
     }
@@ -56,7 +56,8 @@ impl StatusBar {
         "CPU: 25% Mem: 60%".to_string()
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect) {
+    pub fn render(&self, f: &mut Frame, area: Rect, _is_active: bool) {
+        // Added _is_active for component consistency
         let git_info = self.get_git_info();
         let current_time = self.get_current_time();
         let resource_usage = self.get_resource_usage();

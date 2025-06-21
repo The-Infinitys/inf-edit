@@ -11,7 +11,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
 use inf_edit::ActiveTarget;
-use inf_edit::components::status::StatusBar;
+use inf_edit::components::bottom_bar::BottomBar;
 
 use inf_edit::app::App;
 
@@ -24,9 +24,9 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-    let status_bar = StatusBar::new();
+    let bottom_bar = BottomBar::new();
     loop {
-        ui::draw(&mut terminal, &mut app, &status_bar)?;
+        ui::draw(&mut terminal, &mut app, &bottom_bar)?;
 
         // イベント処理
         match event_handler::handle_events(&mut app)? {

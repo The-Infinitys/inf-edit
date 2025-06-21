@@ -10,26 +10,28 @@ use crate::{
     app::App,
     components::{
         main_widget::MainWidget, panel::Panel, primary_sidebar::PrimarySideBar,
-        secondary_sidebar::SecondarySideBar, status::StatusBar,
+        secondary_sidebar::SecondarySideBar, bottom_bar::BottomBar, top_bar::TopBar, // Directly import BottomBar and TopBar
     },
 };
 
 pub fn draw(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
     app: &mut App,
-    status_bar: &StatusBar,
+    bottom_bar_instance: &BottomBar, // Renamed parameter and type
 ) -> Result<()> {
     terminal.draw(|f| {
         let frame_area = f.area();
 
-        // 1. Overall Vertical Split: Main Content Area | Status Bar Area
+        // 1. Overall Vertical Split: Top Bar | Main Content Area | Bottom Bar Area
         let main_vertical_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
+                Constraint::Length(1), // Top Bar Area (fixed height)
                 Constraint::Min(0),    // Main Content Area (takes remaining space)
                 Constraint::Length(1), // Status Bar Area (fixed height)
             ])
             .split(frame_area);
+        let top_bar_area = main_vertical_layout[0];
 
         let main_content_area = main_vertical_layout[0];
         let status_area = main_vertical_layout[1];
@@ -55,7 +57,7 @@ pub fn draw(
             .constraints(horizontal_constraints)
             .split(main_content_area);
 
-        // Assign areas based on visibility and the generated chunks
+        // Assign areas based on visibility and the generated chunks (adjusting for new top bar)
         let mut current_chunk_index = 0;
 
         // The tabs area is always the first chunk.
@@ -70,7 +72,7 @@ pub fn draw(
             Rect::new(0, 0, 0, 0) // Zero area if not shown
         };
 
-        let center_area = main_horizontal_layout_chunks[current_chunk_index]; // Center is the next chunk
+        let center_area = main_horizontal_layout_chunks[current_chunk_index]; // Center is the next chunk after sidebars
         current_chunk_index += 1; // Move index past center
 
         // The secondary sidebar area is the last chunk if visible.
@@ -156,7 +158,7 @@ pub fn draw(
             let panel_chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
-                    Constraint::Min(0),     // Area for terminal content
+                    Constraint::Min(0),    // Area for terminal content
                     Constraint::Length(20), // Area for tabs
                 ])
                 .split(panel_area);
@@ -174,8 +176,18 @@ pub fn draw(
             panel.render_content(f, content_area);
         }
 
-        // Render the status bar at the bottom
-        status_bar.render(f, status_area);
+        // Render the Top Bar
+        let top_bar = TopBar::new();
+        let active_editor_title = app.editors.get(app.active_editor_tab)
+            .map(|tab| tab.title.as_str())
+            .unwrap_or("No Editor Open");
+        top_bar.render(f, top_bar_area, app.active_target == ActiveTarget::Editor, active_editor_title);
+
+        // Render the Bottom Bar (formerly status bar)
+        // Use the instance passed as a parameter
+        bottom_bar_instance.render(f, status_area, app.active_target == ActiveTarget::Editor); // Pass active state if needed, though not used in BottomBar currently
+
+
 
         // Render Help widget on top, if visible. It needs the full frame area to calculate its centered position.
     })?;
