@@ -1,12 +1,13 @@
 pub mod file_view;
 pub use self::file_view::FileView;
 
+pub mod search;
 pub mod component;
 use self::component::PrimarySidebarComponent;
 use crate::Tab;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Tabs},
+    widgets::{Block, Borders, List, ListItem},
 };
 
 pub struct PrimarySideBar<'a> {
@@ -28,39 +29,47 @@ impl<'a> PrimarySideBar<'a> {
         }
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect) {
+    /// Renders the vertical tabs on the far left.
+    pub fn render_tabs(&mut self, f: &mut Frame, area: Rect) {
+        let tab_titles: Vec<ListItem> = self
+            .components
+            .iter()
+            .enumerate()
+            .map(|(i, tab)| {
+                let icon = match tab.content {
+                    PrimarySidebarComponent::FileView(_) => "📁",
+                    PrimarySidebarComponent::Search(_) => "🔍",
+                };
+                let text = Span::from(format!("{} {}", icon, tab.title));
+                let mut list_item = ListItem::new(text);
+                if i == self.active_tab_index {
+                    list_item = list_item.style(Style::default().fg(Color::Green).bold());
+                }
+                list_item
+            })
+            .collect();
+
+        let tabs_list = List::new(tab_titles)
+            .block(Block::default().title("Tabs").borders(Borders::RIGHT));
+
+        f.render_widget(tabs_list, area);
+    }
+
+    /// Renders the content of the active tab.
+    pub fn render_content(&mut self, f: &mut Frame, area: Rect) {
         let border_style = if self.is_active {
             Style::default().fg(Color::Green)
         } else {
             Style::default()
         };
 
-        let outer_block = Block::default()
-            .title("Primary Sidebar")
-            .borders(Borders::ALL)
-            .border_style(border_style);
-        let inner_area = outer_block.inner(area);
-        f.render_widget(outer_block, area);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(2), Constraint::Min(0)]) // Tabs, Content
-            .split(inner_area);
-
-        let tab_titles: Vec<Line> = self
-            .components
-            .iter()
-            .map(|tab| Line::from(tab.title.as_str()))
-            .collect();
-
-        let tabs = Tabs::new(tab_titles)
-            .block(Block::default().borders(Borders::BOTTOM))
-            .select(self.active_tab_index)
-            .highlight_style(Style::default().fg(Color::Green).bold());
-        f.render_widget(tabs, chunks[0]);
-
         if let Some(active_component) = self.components.get_mut(self.active_tab_index) {
-            active_component.content.render(f, chunks[1], self.is_active);
+            // The content area itself doesn't need its own border if it's inside the main UI layout
+            let content_block = Block::default().border_style(border_style);
+            let content_area = content_block.inner(area);
+            f.render_widget(content_block, area);
+
+            active_component.content.render(f, content_area, self.is_active);
         }
     }
 }

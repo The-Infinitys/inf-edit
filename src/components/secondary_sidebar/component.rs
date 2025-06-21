@@ -1,4 +1,4 @@
-use crate::components::help_widget::HelpWidget;
+use super::help_widget::HelpWidget;
 use ratatui::{layout::Rect, Frame};
 
 /// Enum to hold all possible components for the secondary sidebar.

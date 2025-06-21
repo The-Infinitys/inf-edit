@@ -1,10 +1,11 @@
 use super::file_view::FileView;
+use super::search::SearchWidget;
 use ratatui::{layout::Rect, Frame};
 
 /// Enum to hold all possible components for the primary sidebar.
 pub enum PrimarySidebarComponent {
     FileView(FileView),
-    // Other components like a Git view could be added here in the future.
+    Search(SearchWidget),
 }
 
 impl PrimarySidebarComponent {
@@ -13,6 +14,7 @@ impl PrimarySidebarComponent {
     pub fn render(&mut self, f: &mut Frame, area: Rect, is_active: bool) {
         match self {
             PrimarySidebarComponent::FileView(fv) => fv.render(f, area, is_active),
+            PrimarySidebarComponent::Search(sw) => sw.render(f, area, is_active),
         }
     }
 }

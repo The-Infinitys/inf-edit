@@ -38,13 +38,19 @@ pub fn draw(
         let status_area = main_vertical_layout[1];
 
         // 2. Main Content Horizontal Split: (Primary Sidebar) | Center Area | (Secondary Sidebar)
+        let TABS_WIDTH = 12;
+        let SIDEBAR_CONTENT_WIDTH = 30;
+
         let mut horizontal_constraints = Vec::new();
+        // Area for the vertical tabs of the primary sidebar, always visible
+        horizontal_constraints.push(Constraint::Length(TABS_WIDTH));
+
         if app.show_primary_sidebar {
-            horizontal_constraints.push(Constraint::Length(30)); // Primary Sidebar width
+            horizontal_constraints.push(Constraint::Length(SIDEBAR_CONTENT_WIDTH)); // Primary Sidebar content
         }
         horizontal_constraints.push(Constraint::Min(0)); // Center Area (takes remaining space)
         if app.show_secondary_sidebar {
-            horizontal_constraints.push(Constraint::Length(30)); // Secondary Sidebar width
+            horizontal_constraints.push(Constraint::Length(SIDEBAR_CONTENT_WIDTH)); // Secondary Sidebar width
         }
 
         let main_horizontal_layout_chunks = Layout::default()
@@ -55,9 +61,13 @@ pub fn draw(
         // Assign areas based on visibility and the generated chunks
         let mut current_chunk_index = 0;
 
-        let primary_sidebar_area = if app.show_primary_sidebar {
-            let area = main_horizontal_layout_chunks[current_chunk_index]; // Primary is the first chunk if visible
-            current_chunk_index += 1; // Move index past primary
+        // The tabs area is always the first chunk.
+        let primary_sidebar_tabs_area = main_horizontal_layout_chunks[current_chunk_index];
+        current_chunk_index += 1;
+
+        let primary_sidebar_content_area = if app.show_primary_sidebar {
+            let area = main_horizontal_layout_chunks[current_chunk_index];
+            current_chunk_index += 1;
             area
         } else {
             Rect::new(0, 0, 0, 0) // Zero area if not shown
@@ -87,14 +97,17 @@ pub fn draw(
             .constraints(center_vertical_constraints)
             .split(center_area);
 
-        // Render PrimarySideBar (FileView)
+        // Render PrimarySideBar (Tabs and Content)
+        let mut primary_sidebar = PrimarySideBar::new(
+            &mut app.primary_sidebar_components,
+            app.active_primary_sidebar_tab,
+            app.active_target == ActiveTarget::PrimarySideBar,
+        );
+        // Render tabs in their dedicated, always-visible area
+        primary_sidebar.render_tabs(f, primary_sidebar_tabs_area);
+        // Render content only if the sidebar is shown
         if app.show_primary_sidebar {
-            let mut primary_sidebar = PrimarySideBar::new(
-                &mut app.primary_sidebar_components,
-                app.active_primary_sidebar_tab,
-                app.active_target == ActiveTarget::PrimarySideBar,
-            );
-            primary_sidebar.render(f, primary_sidebar_area);
+            primary_sidebar.render_content(f, primary_sidebar_content_area);
         }
 
         // Render SecondarySideBar

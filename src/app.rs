@@ -3,10 +3,10 @@ use std::env;
 use crate::{
     ActiveTarget, Tab,
     components::{
-        help_widget::HelpWidget,
         main_widget::editor::Editor,
         panel::term::Term,
-        primary_sidebar::{component::PrimarySidebarComponent, FileView},
+        primary_sidebar::{component::PrimarySidebarComponent, search::SearchWidget, FileView},
+        secondary_sidebar::help_widget::HelpWidget,
         secondary_sidebar::component::SecondarySidebarComponent,
     },
 };
@@ -49,6 +49,12 @@ impl App {
                     FileView::new(env::current_dir().unwrap_or_else(|_| "/".into()))
                 ),
                 title: "Explorer".to_string(),
+            },
+            Tab {
+                content: PrimarySidebarComponent::Search(
+                    SearchWidget::new()
+                ),
+                title: "Search".to_string(),
             }],
             secondary_sidebar_components: vec![Tab {
                 content: SecondarySidebarComponent::Help(HelpWidget::new()),

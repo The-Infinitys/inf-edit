@@ -1,4 +1,5 @@
 pub mod component;
+pub mod help_widget;
 use self::component::SecondarySidebarComponent;
 use crate::Tab;
 use ratatui::{

@@ -1,4 +1,3 @@
-pub mod help_widget;
 pub mod main_widget;
 pub mod panel;
 pub mod primary_sidebar;
