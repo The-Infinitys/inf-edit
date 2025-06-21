@@ -31,7 +31,6 @@ impl<'a> MainWidget<'a> {
     pub fn render_tabs(&self, f: &mut Frame, area: Rect) {
         let titles: Vec<String> = self.editor_tabs.iter().map(|t| t.title.clone()).collect();
         let tabs = Tabs::new(titles)
-            .block(Block::default().borders(Borders::BOTTOM))
             .select(self.active_editor_tab_index)
             .style(Style::default().fg(Color::Gray))
             .highlight_style(

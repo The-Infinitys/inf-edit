@@ -152,17 +152,17 @@ pub fn draw(
 
         // Render the Panel
         if app.show_panel && !app.terminals.is_empty() {
-            // Split the panel area to have tabs on top
+            // Split the panel area to have content on the left and tabs on the right
             let panel_chunks = Layout::default()
-                .direction(Direction::Vertical)
+                .direction(Direction::Horizontal)
                 .constraints([
-                    Constraint::Length(1), // Area for tabs
                     Constraint::Min(0),    // Area for terminal content
+                    Constraint::Length(20), // Area for tabs
                 ])
                 .split(panel_area);
 
-            let tabs_area = panel_chunks[0];
-            let content_area = panel_chunks[1];
+            let content_area = panel_chunks[0];
+            let tabs_area = panel_chunks[1];
 
             let mut panel = Panel::new(
                 &mut app.terminals,

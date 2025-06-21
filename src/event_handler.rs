@@ -235,11 +235,11 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                     .contains(KeyModifiers::CONTROL | KeyModifiers::SHIFT)
             {
                 match key.code {
-                    KeyCode::Left => {
+                    KeyCode::Up => {
                         app.active_terminal_tab = app.active_terminal_tab.saturating_sub(1);
                         return Ok(AppEvent::Continue);
                     }
-                    KeyCode::Right => {
+                    KeyCode::Down => {
                         app.active_terminal_tab =
                             (app.active_terminal_tab + 1) % app.terminals.len();
                         return Ok(AppEvent::Continue);

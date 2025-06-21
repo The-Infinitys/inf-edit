@@ -1,7 +1,7 @@
 use ratatui::{
     prelude::*,
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Tabs},
+    widgets::{Block, Borders, List, ListItem},
 };
 
 pub mod term;
@@ -29,17 +29,23 @@ impl<'a> Panel<'a> {
 
     /// Renders the terminal tabs at the top of its area.
     pub fn render_tabs(&self, f: &mut Frame, area: Rect) {
-        let titles: Vec<String> = self.terminal_tabs.iter().map(|t| t.title.clone()).collect();
-        let tabs = Tabs::new(titles)
-            .block(Block::default().borders(Borders::BOTTOM))
-            .select(self.active_terminal_tab_index)
-            .style(Style::default().fg(Color::Gray))
-            .highlight_style(
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            );
-        f.render_widget(tabs, area);
+        let tab_titles: Vec<ListItem> = self
+            .terminal_tabs
+            .iter()
+            .enumerate()
+            .map(|(i, tab)| {
+                let mut list_item = ListItem::new(tab.title.clone());
+                if i == self.active_terminal_tab_index {
+                    list_item = list_item.style(Style::default().fg(Color::Yellow).bold());
+                }
+                list_item
+            })
+            .collect();
+
+        let tabs_list = List::new(tab_titles)
+            .block(Block::default().title("Terminals").borders(Borders::ALL));
+
+        f.render_widget(tabs_list, area);
     }
 
     /// Renders the content of the active terminal.

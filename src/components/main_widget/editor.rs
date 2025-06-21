@@ -1,3 +1,4 @@
+use crate::event_handler::PtyInput;
 use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use std::env;
 use std::io::{Read, Write};
@@ -5,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tui_term::vt100::Parser;
 use tui_term::widget::PseudoTerminal;
-use crate::event_handler::PtyInput;
 
 pub struct Editor {
     parser: Arc<Mutex<Parser>>,
@@ -74,8 +74,10 @@ impl Editor {
         area: ratatui::layout::Rect,
         block: ratatui::widgets::Block,
     ) {
-        let rows = area.height.saturating_sub(2).max(1);
-        let cols = area.width.max(1);
+        // The area for the terminal content is inside the block's borders.
+        let inner_area = block.inner(area);
+        let rows = inner_area.height;
+        let cols = inner_area.width;
 
         {
             let mut parser = self.parser.lock().unwrap();
@@ -91,9 +93,9 @@ impl Editor {
         let parser = self.parser.lock().unwrap();
         let pseudo_term = PseudoTerminal::new(parser.screen()).block(block);
         f.render_widget(pseudo_term, area);
-        let (cur_y, cur_x) = parser.screen().cursor_position(); // vt100は(1,1)始まり
-        let cursor_x = area.x + cur_x;
-        let cursor_y = area.y + cur_y;
+        let (cur_y, cur_x) = parser.screen().cursor_position(); // This is 1-based (y, x)
+        let cursor_x = inner_area.x + cur_x;
+        let cursor_y = inner_area.y + cur_y;
         f.set_cursor_position((cursor_x, cursor_y));
     }
 

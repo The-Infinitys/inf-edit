@@ -25,6 +25,7 @@
 | ↑/↓, j/k         | ファイルビュー上下移動      |
 | Alt+H, Alt+L     | プライマリサイドバーのタブ切替 |
 | Enter            | ディレクトリ移動/ファイル編集|
+| Ctrl+Shift+↑/↓   | ターミナルタブの切替      |
 | Backspace, h     | 1つ上のディレクトリに戻る   |
 | Ctrl+Alt+B       | ヘルプの表示/非表示 (Secondary Sidebar) |
 
