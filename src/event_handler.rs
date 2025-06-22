@@ -2,12 +2,12 @@ use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::time::Duration;
 
+use crate::components::popup::PopupResult;
 use crate::{
     app::App,
     components::notification::{send_notification, NotificationType},
 };
 use crate::{ActiveTarget, MainWidgetContent};
-use crate::components::popup::PopupResult;
 mod component;
 mod global;
 mod palette;

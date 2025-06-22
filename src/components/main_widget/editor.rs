@@ -2,7 +2,7 @@ use crate::{
     components::notification::{send_notification, NotificationType},
     event_handler::PtyInput,
 };
-use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
+use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::env;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,10 +42,15 @@ fn init_pty(path: Option<std::path::PathBuf>) -> PtyResources {
     if let Some(p) = path {
         cmd.arg(p);
     }
-    let _child = pty_pair.slave.spawn_command(cmd).expect("Failed to spawn editor");
+    let _child = pty_pair
+        .slave
+        .spawn_command(cmd)
+        .expect("Failed to spawn editor");
 
     let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
-    let writer = Arc::new(Mutex::new(pty_pair.master.take_writer().expect("clone writer")));
+    let writer = Arc::new(Mutex::new(
+        pty_pair.master.take_writer().expect("clone writer"),
+    ));
     let dead = Arc::new(AtomicBool::new(false));
 
     // Thread to stream PTY output to the parser
@@ -102,7 +107,7 @@ impl Editor {
         // The area for the terminal content is inside the block's borders.
         let inner_area = block.inner(area);
         let rows = inner_area.height.max(1); // Ensure at least 1 row
-        let cols = inner_area.width.max(1);   // Ensure at least 1 col
+        let cols = inner_area.width.max(1); // Ensure at least 1 col
 
         {
             let mut parser = self.parser.lock().unwrap();
@@ -120,7 +125,7 @@ impl Editor {
         f.render_widget(pseudo_term, area);
         let (cur_y, cur_x) = parser.screen().cursor_position(); // This is 1-based (y, x)
         let cursor_x = inner_area.x + cur_x;
-        let cursor_y = inner_area.y + cur_y.saturating_sub(1);
+        let cursor_y = inner_area.y + cur_y;
         f.set_cursor_position((cursor_x, cursor_y));
     }
 

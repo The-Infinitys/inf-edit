@@ -260,7 +260,9 @@ impl CommandPalette {
                             app.open_editor(
                                 current_dir()
                                     .unwrap_or(PathBuf::from("./"))
-                                    .join(&path_clone).canonicalize().unwrap_or_default()
+                                    .join(&path_clone)
+                                    .canonicalize()
+                                    .unwrap_or_default()
                                     .as_path(),
                             );
                         })

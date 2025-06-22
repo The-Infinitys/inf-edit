@@ -186,17 +186,23 @@ impl GitWidget {
                 if key.code == KeyCode::Enter {
                     match self.active_input {
                         ActiveGitInput::Unstaged => {
-                            let file_to_stage = if let Some(selected) = self.unstaged_state.selected() {
-                                self.unstaged_files.get(selected).map(|f| f.path.clone())
-                            } else { None };
+                            let file_to_stage =
+                                if let Some(selected) = self.unstaged_state.selected() {
+                                    self.unstaged_files.get(selected).map(|f| f.path.clone())
+                                } else {
+                                    None
+                                };
                             if let Some(path) = file_to_stage {
                                 self.stage_file(&path);
                             }
                         }
                         ActiveGitInput::Staged => {
-                            let file_to_unstage = if let Some(selected) = self.staged_state.selected() {
-                                self.staged_files.get(selected).map(|f| f.path.clone())
-                            } else { None };
+                            let file_to_unstage =
+                                if let Some(selected) = self.staged_state.selected() {
+                                    self.staged_files.get(selected).map(|f| f.path.clone())
+                                } else {
+                                    None
+                                };
                             if let Some(path) = file_to_unstage {
                                 self.unstage_file(&path);
                             }
@@ -266,30 +272,60 @@ impl GitWidget {
 
                 // Staged changes (Index vs HEAD)
                 if status.is_index_new() {
-                    self.staged_files.push(GitFile { display: format!("A  {}", path), path });
+                    self.staged_files.push(GitFile {
+                        display: format!("A  {}", path),
+                        path,
+                    });
                 } else if status.is_index_modified() {
-                    self.staged_files.push(GitFile { display: format!("M  {}", path), path });
+                    self.staged_files.push(GitFile {
+                        display: format!("M  {}", path),
+                        path,
+                    });
                 } else if status.is_index_deleted() {
-                    self.staged_files.push(GitFile { display: format!("D  {}", path), path });
+                    self.staged_files.push(GitFile {
+                        display: format!("D  {}", path),
+                        path,
+                    });
                 } else if status.is_index_renamed() {
-                    self.staged_files.push(GitFile { display: format!("R  {}", path), path });
+                    self.staged_files.push(GitFile {
+                        display: format!("R  {}", path),
+                        path,
+                    });
                 } else if status.is_index_typechange() {
-                    self.staged_files.push(GitFile { display: format!("T  {}", path), path });
+                    self.staged_files.push(GitFile {
+                        display: format!("T  {}", path),
+                        path,
+                    });
                 }
 
                 // Unstaged changes (Working Tree vs Index)
                 if status.is_wt_new() {
-                    self.unstaged_files.push(GitFile { display: format!("?? {}", path_clone), path: path_clone });
+                    self.unstaged_files.push(GitFile {
+                        display: format!("?? {}", path_clone),
+                        path: path_clone,
+                    });
                 }
                 // Untracked
                 else if status.is_wt_modified() {
-                    self.unstaged_files.push(GitFile { display: format!("M  {}", path_clone), path: path_clone });
+                    self.unstaged_files.push(GitFile {
+                        display: format!("M  {}", path_clone),
+                        path: path_clone,
+                    });
                 } else if status.is_wt_deleted() {
-                    self.unstaged_files.push(GitFile { display: format!("D  {}", path_clone), path: path_clone });
+                    self.unstaged_files.push(GitFile {
+                        display: format!("D  {}", path_clone),
+                        path: path_clone,
+                    });
                 } else if status.is_wt_renamed() {
-                    self.unstaged_files.push(GitFile { display: format!("R  {}", path_clone), path: path_clone });
+                    self.unstaged_files.push(GitFile {
+                        display: format!("R  {}", path_clone),
+                        path: path_clone,
+                    });
                 } else if status.is_wt_typechange() {
-                    self.unstaged_files.push(GitFile { display: format!("T  {}", path_clone), path: path_clone });
+                    self.unstaged_files.push(GitFile {
+                        display: format!("T  {}", path_clone),
+                        path: path_clone,
+                    });
                 }
             }
         };
@@ -629,7 +665,7 @@ impl GitWidget {
                 if let Ok(diff) = diff_result {
                     // Filter the diff to only include the selected file
                     // Apply the path filter when printing the diff
-                    
+
                     let mut lines = Vec::new();
                     let _ = diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
                         let (style, prefix) = match line.origin() {

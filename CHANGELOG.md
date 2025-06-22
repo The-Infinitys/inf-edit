@@ -1,5 +1,9 @@
 # Change Log
 
+## version 1.4.1
+
+- ターミナルに関する仕様の変更
+
 ## version 1.4.0
 
 - バグ修正
