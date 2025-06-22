@@ -13,9 +13,7 @@ pub fn key_event_to_string(key: KeyEvent) -> Option<String> {
         parts.push("Alt");
     }
     // crossterm's Backtab is implicitly Shift-Tab
-    if key.code == KeyCode::BackTab {
-        parts.push("Shift");
-    } else if key.modifiers.contains(KeyModifiers::SHIFT) {
+    if key.code == KeyCode::BackTab || key.modifiers.contains(KeyModifiers::SHIFT) {
         parts.push("Shift");
     }
 
