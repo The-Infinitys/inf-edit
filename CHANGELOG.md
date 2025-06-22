@@ -1,5 +1,10 @@
 # Change Log
 
+## version 1.4.0
+
+- バグ修正
+- 機能を追加
+
 ## version 1.3.0
 
 - 設定を追加
