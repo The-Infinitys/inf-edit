@@ -48,6 +48,7 @@ pub enum CommandPaletteEvent {
     OpenFile(String),
     OpenSettings,
     ResetSettings,
+    SetThemePreset(String),
 }
 
 impl Default for CommandPalette {
@@ -119,6 +120,22 @@ impl CommandPalette {
             "設定をデフォルトにリセット".to_string(),
             Box::new(|_cp| {
                 // This will be handled by the event enum
+            }),
+        );
+        cp.add_command(
+            ">workbench.action.selectTheme".to_string(),
+            "テーマを選択".to_string(),
+            Box::new(|cp| {
+                let themes = vec![
+                    "default-dark".to_string(),
+                    "default-light".to_string(),
+                    "atom-dark".to_string(),
+                    "dracula".to_string(),
+                    "nord".to_string(),
+                    "solarized_dark".to_string(),
+                    "tokyo-night-blue".to_string(),
+                ];
+                cp.get_selection("Select a theme".to_string(), themes);
             }),
         );
         cp.update_mode_and_candidates();
@@ -286,6 +303,13 @@ impl CommandPalette {
                 CommandPaletteEvent::None
             }
             KeyCode::Enter => {
+                if let Some(InputMode::Selection { .. }) = &self.input_mode {
+                    if let Some(selected_item) = self.selection_items.get(self.state.selected().unwrap_or(0)) {
+                        self.input_mode = None; // Exit selection mode
+                        return CommandPaletteEvent::SetThemePreset(selected_item.clone());
+                    }
+                }
+
                 let selected_index = self.state.selected().unwrap_or(0); // ListStateから選択項目を取得
                 match self.mode {
                     PaletteMode::Command => {

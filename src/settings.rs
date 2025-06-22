@@ -64,7 +64,7 @@ impl Default for Keybindings {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            preset: "Custom".to_string(),
+            preset: "default-dark".to_string(),
             primary_bg: "Black".to_string(),
             secondary_bg: "#222222".to_string(),
             text_fg: "White".to_string(),

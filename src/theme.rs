@@ -31,6 +31,27 @@ fn parse_color(s: &str) -> Result<Color> {
 impl Theme {
     pub fn from_config(config_theme: &settings::Theme) -> Self {
         match config_theme.preset.to_lowercase().as_str() {
+            "default-dark" => Self {
+                primary_bg: parse_color("black").unwrap(),
+                secondary_bg: parse_color("#222222").unwrap(),
+                text_fg: parse_color("white").unwrap(),
+                highlight_fg: parse_color("yellow").unwrap(),
+                highlight_bg: parse_color("blue").unwrap(),
+            },
+            "default-light" => Self {
+                primary_bg: parse_color("white").unwrap(),
+                secondary_bg: parse_color("#eeeeee").unwrap(),
+                text_fg: parse_color("black").unwrap(),
+                highlight_fg: parse_color("blue").unwrap(),
+                highlight_bg: parse_color("yellow").unwrap(),
+            },
+            "atom-dark" => Self {
+                primary_bg: parse_color("#282c34").unwrap(),
+                secondary_bg: parse_color("#21252b").unwrap(),
+                text_fg: parse_color("#abb2bf").unwrap(),
+                highlight_fg: parse_color("#61afef").unwrap(),
+                highlight_bg: parse_color("#3a3f4b").unwrap(),
+            },
             "dracula" => Self {
                 primary_bg: parse_color("#282a36").unwrap(),
                 secondary_bg: parse_color("#44475a").unwrap(),
@@ -51,6 +72,13 @@ impl Theme {
                 text_fg: parse_color("#839496").unwrap(),
                 highlight_fg: parse_color("#268bd2").unwrap(),
                 highlight_bg: parse_color("#073642").unwrap(),
+            },
+            "tokyo-night-blue" => Self {
+                primary_bg: parse_color("#1a1b26").unwrap(),
+                secondary_bg: parse_color("#24283b").unwrap(),
+                text_fg: parse_color("#c0caf5").unwrap(),
+                highlight_fg: parse_color("#7aa2f7").unwrap(),
+                highlight_bg: parse_color("#414868").unwrap(),
             },
             // "Custom" or any other value falls back to parsing individual colors
             _ => {

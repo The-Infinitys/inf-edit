@@ -87,6 +87,15 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                         }
                         app.show_command_palette = false;
                     }
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::SetThemePreset(preset) => {
+                        app.config.theme.preset = preset;
+                        app.theme = Theme::from_config(&app.config.theme);
+                        if let Err(e) = app.config.save() {
+                            let msg = format!("Failed to save theme preset: {}", e);
+                            send_notification(msg, NotificationType::Error);
+                        }
+                        app.show_command_palette = false;
+                    }
                     crate::components::top_bar::command_palette::CommandPaletteEvent::OpenFile(path) => {
                         // ファイルを開く処理例
                         let mut editor = crate::components::main_widget::editor::Editor::new();
