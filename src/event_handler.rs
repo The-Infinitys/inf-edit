@@ -23,6 +23,7 @@ pub enum AppEvent {
 pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     // Poll for any async results before checking for blocking input
     app.poll_command_palette_files();
+    app.poll_file_watcher();
 
     if !event::poll(Duration::from_millis(100))? {
         return Ok(AppEvent::Continue);

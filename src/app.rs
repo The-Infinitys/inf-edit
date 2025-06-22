@@ -179,4 +179,11 @@ impl App {
             self.command_palette.poll_files();
         }
     }
+
+    pub fn poll_file_watcher(&mut self) {
+        // Assuming FileView is the first tab, but this could be more robust
+        if let Some(tab) = self.primary_sidebar_components.get_mut(0) {
+            tab.content.poll_file_changes();
+        }
+    }
 }
