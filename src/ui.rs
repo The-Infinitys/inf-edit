@@ -2,7 +2,7 @@ use anyhow::Result;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::{Clear, Paragraph}, // Keep Paragraph for TopBar rendering
+    widgets::Clear,
     Terminal,
 };
 

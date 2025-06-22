@@ -105,7 +105,7 @@ impl App {
                 content: MainWidgetContent::SettingsEditor(settings_editor),
                 title: "Settings".to_string(),
             });
-            self.active_main_tab = self.main_tabs.len() - 1;
+            self.active_main_tab = self.main_tabs.len().saturating_sub(1);
         }
         self.active_target = ActiveTarget::Editor;
     }

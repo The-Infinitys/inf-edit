@@ -427,7 +427,7 @@ impl CommandPalette {
         }
 
         // 通常のコマンドパレット候補リスト描画
-        let max_height = area.height.saturating_sub(3);
+        let max_height = area.height.saturating_sub(2);
         let list_height = self.calc_command_list_height(max_height);
 
         let list_area = Rect {

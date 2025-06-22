@@ -373,13 +373,36 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             // Component-specific key handling
             match app.active_target {
                 ActiveTarget::Editor => {
-                    if let Some(tab) = app.main_tabs.get_mut(app.active_main_tab) {
-                        match &mut tab.content {
-                            MainWidgetContent::Editor(editor) => {
-                                send_key_to_terminal(editor, key);
+                    let active_tab_idx = app.active_main_tab;
+
+                    // Ensure the index is valid before proceeding
+                    if active_tab_idx < app.main_tabs.len() {
+                        // Check the type of content without creating a long-lived mutable borrow of the tab.
+                        let is_settings_editor = matches!(app.main_tabs.get(active_tab_idx).map(|t| &t.content), Some(MainWidgetContent::SettingsEditor(_)));
+
+                        if is_settings_editor {
+                            // Temporarily take out the SettingsEditor from the tab.
+                            // This directly accesses and replaces the content, avoiding a long-lived `tab` borrow.
+                            let content_placeholder = std::mem::replace(
+                                &mut app.main_tabs[active_tab_idx].content,
+                                MainWidgetContent::Editor(Editor::new()), // Dummy placeholder
+                            );
+
+                            if let MainWidgetContent::SettingsEditor(mut settings_editor) = content_placeholder {
+                                // Now, `app.main_tabs` is not mutably borrowed, so we can safely pass `app` mutably.
+                                settings_editor.handle_key(key, app);
+                                // Put the (potentially modified) settings editor back into the tab.
+                                app.main_tabs[active_tab_idx].content = MainWidgetContent::SettingsEditor(settings_editor);
+                            } else {
+                                unreachable!("Expected SettingsEditor content after check."); // Should not happen
                             }
-                            MainWidgetContent::SettingsEditor(settings_editor) => {
-                                settings_editor.handle_key(key, &app.config);
+                        } else {
+                            // If it's not a SettingsEditor, handle it as a regular Editor.
+                            if let Some(editor) = app.main_tabs.get_mut(active_tab_idx).and_then(|t| match &mut t.content {
+                                MainWidgetContent::Editor(e) => Some(e),
+                                _ => None,
+                            }) {
+                                send_key_to_terminal(editor, key);
                             }
                         }
                     }
