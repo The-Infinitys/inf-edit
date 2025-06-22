@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::*,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     widgets::{Block, Borders, Tabs},
 };
 
@@ -25,12 +25,14 @@ impl MainWidget {
     /// Renders the editor tabs at the top of its area.
     pub fn render_tabs(&self, f: &mut Frame, area: Rect, app: &App) {
         let titles: Vec<String> = app.main_tabs.iter().map(|t| t.title.clone()).collect();
+        // Render a block behind the tabs to set the background color
+        f.render_widget(Block::default().bg(app.theme.primary_bg), area);
         let tabs = Tabs::new(titles)
             .select(self.active_editor_tab_index)
-            .style(Style::default().fg(Color::Gray))
+            .style(Style::default().fg(app.theme.text_fg))
             .highlight_style(
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(app.theme.highlight_fg)
                     .add_modifier(Modifier::BOLD),
             );
         f.render_widget(tabs, area);
@@ -49,9 +51,9 @@ impl MainWidget {
         );
 
         let border_style = if self.is_active {
-            Style::default().fg(Color::Green)
+            Style::default().fg(app.theme.highlight_fg)
         } else {
-            Style::default()
+            Style::default().fg(app.theme.text_fg)
         };
 
         if is_settings_editor {
@@ -72,6 +74,7 @@ impl MainWidget {
                     let content_block = Block::default()
                         .borders(Borders::ALL)
                         .border_style(border_style)
+                        .bg(app.theme.primary_bg)
                         .title("Editor"); // Added title for clarity
                     editor.render_with_block(f, area, content_block);
                 }

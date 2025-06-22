@@ -1,4 +1,4 @@
-use ratatui::{layout::{Constraint, Direction, Layout, Rect}, Frame, style::{Style, Color}, widgets::{Block, Borders}};
+use ratatui::{layout::{Constraint, Direction, Layout, Rect}, prelude::*, widgets::{Block, Borders}};
 pub mod item;
 use self::item::{BottomBarItem, GitInfoItem, CurrentTimeItem, ResourceUsageItem}; // Import from its own sub-module
 
@@ -26,7 +26,7 @@ impl BottomBar {
     pub fn render(&self, f: &mut Frame, area: Rect, _is_active: bool, theme: &crate::theme::Theme) {
         let block = Block::default()
             .borders(Borders::NONE)
-            .border_style(Style::default().fg(Color::DarkGray));
+            .bg(theme.secondary_bg);
         f.render_widget(&block, area);
 
         let inner_area = block.inner(area);

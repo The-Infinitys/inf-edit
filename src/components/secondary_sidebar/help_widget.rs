@@ -1,6 +1,6 @@
 use crate::theme::Theme;
 use ratatui::{
-    Frame,
+    prelude::*,
     layout::Rect,
     style::Style,
     widgets::{Block, Borders, List, ListItem},
@@ -32,7 +32,7 @@ impl HelpWidget {
         let help_list =
             List::new(help_items)
                 .style(Style::default().fg(theme.text_fg))
-                .block(Block::default().title("Help").borders(Borders::ALL));
+                .block(Block::default().title("Help").borders(Borders::ALL).bg(theme.primary_bg));
 
         f.render_widget(help_list, app_area);
     }

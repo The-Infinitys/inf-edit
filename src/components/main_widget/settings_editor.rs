@@ -97,7 +97,11 @@ impl SettingsEditor {
         )));
 
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Settings"))
+            .block(
+                Block::default().borders(Borders::ALL)
+                .title("Settings")
+                .bg(theme.primary_bg)
+            )
             .highlight_style(Style::default().bg(theme.highlight_bg).fg(theme.text_fg))
             .highlight_symbol(">> ");
 

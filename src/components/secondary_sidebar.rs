@@ -33,12 +33,13 @@ impl<'a> SecondarySideBar<'a> {
         let border_style = if self.is_active {
             Style::default().fg(theme.highlight_fg)
         } else {
-            Style::default()
+            Style::default().fg(theme.text_fg)
         };
 
         let outer_block = Block::default()
             .title("Secondary Sidebar")
             .borders(Borders::ALL)
+            .bg(theme.primary_bg)
             .border_style(border_style);
         let inner_area = outer_block.inner(area);
         f.render_widget(outer_block, area);
@@ -57,7 +58,7 @@ impl<'a> SecondarySideBar<'a> {
         let tabs = Tabs::new(tab_titles)
             .block(Block::default().borders(Borders::BOTTOM))
             .select(self.active_tab_index)
-            .highlight_style(Style::default().fg(theme.highlight_fg).bold());
+            .highlight_style(Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD));
         f.render_widget(tabs, chunks[0]);
 
         if let Some(active_component) = self.components.get_mut(self.active_tab_index) {

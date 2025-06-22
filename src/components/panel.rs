@@ -37,14 +37,14 @@ impl<'a> Panel<'a> {
             .map(|(i, tab)| {
                 let mut list_item = ListItem::new(tab.title.clone());
                 if i == self.active_terminal_tab_index {
-                    list_item = list_item.style(Style::default().fg(theme.highlight_fg).bold());
+                    list_item = list_item.style(Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD));
                 }
                 list_item
             })
             .collect();
 
         let tabs_list =
-            List::new(tab_titles).block(Block::default().title("Terminals").borders(Borders::ALL));
+            List::new(tab_titles).block(Block::default().title("Terminals").borders(Borders::ALL).bg(theme.secondary_bg));
 
         f.render_widget(tabs_list, area);
     }
@@ -55,11 +55,12 @@ impl<'a> Panel<'a> {
             let border_style = if self.is_active {
                 Style::default().fg(theme.highlight_fg)
             } else {
-                Style::default()
+                Style::default().fg(theme.text_fg)
             };
             let content_block = Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
+                .bg(theme.primary_bg)
                 .title("Terminal"); // Added title for clarity
             active_term_tab
                 .content

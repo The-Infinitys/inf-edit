@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::*,
-    style::{Color, Style},
+    style::Style,
     widgets::{Block, Borders, Paragraph},
 };
 pub mod command_palette; // Declare the sub-module
@@ -19,10 +19,10 @@ impl TopBar {
         Self {}
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect, _is_active: bool, title: &str, _command_palette: &mut CommandPalette, show_command_palette: bool, _theme: &crate::theme::Theme) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, _is_active: bool, title: &str, _command_palette: &mut CommandPalette, show_command_palette: bool, theme: &crate::theme::Theme) {
         let top_bar_block = Block::default()
             .borders(Borders::NONE)
-            .style(Style::default().fg(Color::White));
+            .bg(theme.secondary_bg);
 
         if show_command_palette {
             // The command palette is rendered as an overlay, so it needs the full frame area
@@ -32,7 +32,7 @@ impl TopBar {
             // This method only sets up the top bar's own content.
             // The `Clear` widget should be used in `ui.rs` before rendering the palette.
         } else {
-            let text = Paragraph::new(title).block(top_bar_block);
+            let text = Paragraph::new(title).block(top_bar_block).style(Style::default().fg(theme.text_fg));
             f.render_widget(text, area);
         }
     }

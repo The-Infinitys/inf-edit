@@ -46,14 +46,14 @@ impl<'a> PrimarySideBar<'a> {
                 let text = Span::from(format!("{} {}", icon, tab.title));
                 let mut list_item = ListItem::new(text);
                 if i == self.active_tab_index {
-                    list_item = list_item.style(Style::default().fg(theme.highlight_fg).bold());
+                    list_item = list_item.style(Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD));
                 }
                 list_item
             })
             .collect();
 
         let tabs_list =
-            List::new(items).block(Block::default().title("Tabs").borders(Borders::RIGHT));
+            List::new(items).block(Block::default().title("Tabs").borders(Borders::RIGHT).bg(theme.secondary_bg));
         f.render_widget(tabs_list, area);
     }
 
@@ -62,7 +62,7 @@ impl<'a> PrimarySideBar<'a> {
         let border_style = if self.is_active {
             Style::default().fg(theme.highlight_fg)
         } else {
-            Style::default()
+            Style::default().fg(theme.text_fg)
         };
 
         if let Some(active_component) = self.components.get_mut(self.active_tab_index) {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect}, prelude::*, widgets::Block,
     widgets::Clear,
     Terminal,
 };
@@ -22,6 +22,9 @@ pub fn draw(
 ) -> Result<()> {
     terminal.draw(|f| {
         let frame_area = f.area();
+
+        // Draw a base background for the entire frame
+        f.render_widget(Block::default().bg(app.theme.primary_bg), frame_area);
 
         // 1. Overall Vertical Split: Top Bar | Main Content Area | Bottom Bar Area
         let main_vertical_layout = Layout::default()

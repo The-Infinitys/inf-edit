@@ -80,6 +80,13 @@ impl Theme {
                 highlight_fg: parse_color("#7aa2f7").unwrap(),
                 highlight_bg: parse_color("#414868").unwrap(),
             },
+            "infinity" => Self {
+                primary_bg: parse_color("#21222C").unwrap(),
+                secondary_bg: parse_color("#282A36").unwrap(),
+                text_fg: parse_color("#F8F8F2").unwrap(),
+                highlight_fg: parse_color("#FF79C6").unwrap(),
+                highlight_bg: parse_color("#44475A").unwrap(),
+            },
             // "Custom" or any other value falls back to parsing individual colors
             _ => {
                 let default_theme = settings::Theme::default();

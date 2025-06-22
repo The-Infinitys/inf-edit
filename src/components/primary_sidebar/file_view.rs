@@ -3,7 +3,7 @@ use ratatui::{
     prelude::*,
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::ListState,
     widgets::{Block, Borders, List, ListItem},
@@ -162,6 +162,7 @@ impl FileView {
         let block = Block::default()
             .title(format!(" File View: {} ", self.current_root.display()))
             .borders(Borders::ALL)
+            .bg(theme.primary_bg)
             .border_style(
                 if active {
                     Style::default().fg(theme.highlight_fg)

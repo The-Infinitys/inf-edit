@@ -134,6 +134,7 @@ impl CommandPalette {
                     "nord".to_string(),
                     "solarized_dark".to_string(),
                     "tokyo-night-blue".to_string(),
+                    "infinity".to_string(),
                 ];
                 cp.get_selection("Select a theme".to_string(), themes);
             }),
