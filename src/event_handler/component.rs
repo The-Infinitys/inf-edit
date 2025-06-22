@@ -66,9 +66,8 @@ pub fn handle_component_keys(key: KeyEvent, app: &mut App) -> Result<()> {
 
             if let Some(path) = file_to_open {
                 // If a file was selected, open it in a new tab.
-                let mut editor = Editor::new();
-                let title = path.to_string_lossy().to_string();
-                editor.open_file(path);
+                let editor = Editor::with_file(path.to_path_buf());
+                let title = path.to_string_lossy().to_string(); // PathBuf to String for title
                 app.add_editor_tab(editor, title);
             } else {
                 // Otherwise, pass the key event to the active sidebar component.

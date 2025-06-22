@@ -1,7 +1,7 @@
 use crate::components::notification::{send_notification, NotificationType};
 use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
-use git2::{Repository, StatusOptions};
+use git2::{DiffFormat, DiffOptions, Repository, StatusOptions};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
@@ -18,13 +18,20 @@ enum ActiveGitInput {
     PushButton,
 }
 
+#[derive(Clone)]
+struct GitFile {
+    path: String,
+    display: String,
+}
+
 pub struct GitWidget {
     commit_message: String,
-    staged_files: Vec<String>,
-    unstaged_files: Vec<String>,
+    staged_files: Vec<GitFile>,
+    unstaged_files: Vec<GitFile>,
     staged_state: ListState,
     unstaged_state: ListState,
     active_input: ActiveGitInput,
+    diff_lines: Vec<Line<'static>>,
 }
 
 impl GitWidget {
@@ -36,6 +43,7 @@ impl GitWidget {
             staged_state: ListState::default(),
             unstaged_state: ListState::default(),
             active_input: ActiveGitInput::Unstaged,
+            diff_lines: Vec::new(),
         };
         widget.refresh_status();
         widget
@@ -43,25 +51,30 @@ impl GitWidget {
 
     pub fn render(&mut self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
         let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+            .split(area);
+
+        let left_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(50), // Unstaged/Staged changes area
                 Constraint::Length(3),      // Commit message input
                 Constraint::Length(3),      // Buttons (Commit, Pull, Push)
             ])
-            .split(area);
+            .split(chunks[0]);
 
         let changes_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(chunks[0]);
+            .split(left_chunks[0]);
 
         // Unstaged Changes
         let unstaged_border = self.get_border_style(is_active, &ActiveGitInput::Unstaged, theme);
         let unstaged_items: Vec<ListItem> = self
             .unstaged_files
             .iter()
-            .map(|f| ListItem::new(f.as_str()))
+            .map(|f| ListItem::new(f.display.as_str()))
             .collect();
         let unstaged_list = List::new(unstaged_items)
             .block(
@@ -79,7 +92,7 @@ impl GitWidget {
         let staged_items: Vec<ListItem> = self
             .staged_files
             .iter()
-            .map(|f| ListItem::new(f.as_str()))
+            .map(|f| ListItem::new(f.display.as_str()))
             .collect();
         let staged_list = List::new(staged_items)
             .block(
@@ -99,7 +112,7 @@ impl GitWidget {
                 .border_style(self.get_border_style(is_active, &ActiveGitInput::Commit, theme))
                 .bg(theme.primary_bg),
         );
-        f.render_widget(commit_input, chunks[1]);
+        f.render_widget(commit_input, left_chunks[1]);
 
         let button_chunks = Layout::default()
             .direction(Direction::Horizontal)
@@ -108,7 +121,7 @@ impl GitWidget {
                 Constraint::Ratio(1, 3), // Pull
                 Constraint::Ratio(1, 3), // Push
             ])
-            .split(chunks[2]);
+            .split(left_chunks[2]);
 
         let commit_button = Paragraph::new("Commit").alignment(Alignment::Center).block(
             Block::default()
@@ -142,6 +155,15 @@ impl GitWidget {
         f.render_widget(commit_button, button_chunks[0]);
         f.render_widget(pull_button, button_chunks[1]);
         f.render_widget(push_button, button_chunks[2]); // Render Push button in the correct chunk
+
+        // Diff View
+        let diff_paragraph = Paragraph::new(self.diff_lines.clone()).block(
+            Block::default()
+                .title("Diff")
+                .borders(Borders::ALL)
+                .bg(theme.primary_bg),
+        );
+        f.render_widget(diff_paragraph, chunks[1]);
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
@@ -164,19 +186,19 @@ impl GitWidget {
                 if key.code == KeyCode::Enter {
                     match self.active_input {
                         ActiveGitInput::Unstaged => {
-                            if let Some(selected) = self.unstaged_state.selected() {
-                                let path_to_stage = self.unstaged_files.get(selected).cloned();
-                                if let Some(path_str) = path_to_stage {
-                                    self.stage_file(&path_str[2..]);
-                                }
+                            let file_to_stage = if let Some(selected) = self.unstaged_state.selected() {
+                                self.unstaged_files.get(selected).map(|f| f.path.clone())
+                            } else { None };
+                            if let Some(path) = file_to_stage {
+                                self.stage_file(&path);
                             }
                         }
                         ActiveGitInput::Staged => {
-                            if let Some(selected) = self.staged_state.selected() {
-                                let path_to_unstage = self.staged_files.get(selected).cloned();
-                                if let Some(path_str) = path_to_unstage {
-                                    self.unstage_file(&path_str[2..]);
-                                }
+                            let file_to_unstage = if let Some(selected) = self.staged_state.selected() {
+                                self.staged_files.get(selected).map(|f| f.path.clone())
+                            } else { None };
+                            if let Some(path) = file_to_unstage {
+                                self.unstage_file(&path);
                             }
                         }
                         _ => {}
@@ -239,34 +261,35 @@ impl GitWidget {
         if let Ok(statuses) = repo.statuses(Some(&mut opts)) {
             for entry in statuses.iter() {
                 let path = entry.path().unwrap_or("").to_string();
+                let path_clone = path.clone();
                 let status = entry.status();
 
                 // Staged changes (Index vs HEAD)
                 if status.is_index_new() {
-                    self.staged_files.push(format!("A {}", path));
+                    self.staged_files.push(GitFile { display: format!("A  {}", path), path });
                 } else if status.is_index_modified() {
-                    self.staged_files.push(format!("M {}", path));
+                    self.staged_files.push(GitFile { display: format!("M  {}", path), path });
                 } else if status.is_index_deleted() {
-                    self.staged_files.push(format!("D {}", path));
+                    self.staged_files.push(GitFile { display: format!("D  {}", path), path });
                 } else if status.is_index_renamed() {
-                    self.staged_files.push(format!("R {}", path));
+                    self.staged_files.push(GitFile { display: format!("R  {}", path), path });
                 } else if status.is_index_typechange() {
-                    self.staged_files.push(format!("T {}", path));
+                    self.staged_files.push(GitFile { display: format!("T  {}", path), path });
                 }
 
                 // Unstaged changes (Working Tree vs Index)
                 if status.is_wt_new() {
-                    self.unstaged_files.push(format!("?? {}", path));
+                    self.unstaged_files.push(GitFile { display: format!("?? {}", path_clone), path: path_clone });
                 }
                 // Untracked
                 else if status.is_wt_modified() {
-                    self.unstaged_files.push(format!("M {}", path));
+                    self.unstaged_files.push(GitFile { display: format!("M  {}", path_clone), path: path_clone });
                 } else if status.is_wt_deleted() {
-                    self.unstaged_files.push(format!("D {}", path));
+                    self.unstaged_files.push(GitFile { display: format!("D  {}", path_clone), path: path_clone });
                 } else if status.is_wt_renamed() {
-                    self.unstaged_files.push(format!("R {}", path));
+                    self.unstaged_files.push(GitFile { display: format!("R  {}", path_clone), path: path_clone });
                 } else if status.is_wt_typechange() {
-                    self.unstaged_files.push(format!("T {}", path));
+                    self.unstaged_files.push(GitFile { display: format!("T  {}", path_clone), path: path_clone });
                 }
             }
         };
@@ -568,6 +591,67 @@ impl GitWidget {
         }
     }
 
+    fn update_diff_view(&mut self) {
+        self.diff_lines.clear();
+
+        let (selected_index, is_staged) = match self.active_input {
+            ActiveGitInput::Unstaged => (self.unstaged_state.selected(), false),
+            ActiveGitInput::Staged => (self.staged_state.selected(), true),
+            _ => return,
+        };
+
+        let file_path = match selected_index {
+            Some(index) => {
+                if is_staged {
+                    self.staged_files.get(index).map(|f| f.path.clone())
+                } else {
+                    self.unstaged_files.get(index).map(|f| f.path.clone())
+                }
+            }
+            None => return, // Early return if no file is selected
+        };
+
+        if let Some(path) = file_path {
+            if let Ok(repo) = Repository::open(".") {
+                let mut diff_options = DiffOptions::new();
+                diff_options.pathspec(&path);
+
+                let diff_result = if is_staged {
+                    // Diff for staged files (HEAD vs Index)
+                    let head_obj = repo.revparse_single("HEAD").ok();
+                    let head_tree = head_obj.as_ref().and_then(|o| o.peel_to_tree().ok());
+                    repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut diff_options))
+                } else {
+                    // Diff for unstaged files (Index vs Workdir)
+                    repo.diff_index_to_workdir(None, Some(&mut diff_options))
+                };
+
+                if let Ok(diff) = diff_result {
+                    // Filter the diff to only include the selected file
+                    // Apply the path filter when printing the diff
+                    
+                    let mut lines = Vec::new();
+                    let _ = diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
+                        let (style, prefix) = match line.origin() {
+                            '+' => (Style::default().fg(Color::Green), "+"),
+                            '-' => (Style::default().fg(Color::Red), "-"),
+                            ' ' => (Style::default().fg(Color::DarkGray), " "),
+                            _ => (Style::default(), " "), // Headers, etc.
+                        };
+                        let content = String::from_utf8_lossy(line.content()).to_string();
+                        lines.push(Line::from(vec![
+                            Span::styled(prefix, style),
+                            Span::raw(" "),
+                            Span::styled(content, style),
+                        ]));
+                        true
+                    });
+                    self.diff_lines = lines;
+                }
+            }
+        }
+    }
+
     fn get_border_style(&self, is_active: bool, input: &ActiveGitInput, theme: &Theme) -> Style {
         if is_active && std::mem::discriminant(&self.active_input) == std::mem::discriminant(input)
         {
@@ -591,6 +675,7 @@ impl GitWidget {
             KeyCode::Down => {
                 let i = state.selected().map_or(0, |i| (i + 1) % len);
                 state.select(Some(i));
+                self.update_diff_view();
                 true
             }
             KeyCode::Up => {
@@ -598,6 +683,7 @@ impl GitWidget {
                     .selected()
                     .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 state.select(Some(i));
+                self.update_diff_view();
                 true
             }
             _ => false,

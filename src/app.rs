@@ -106,9 +106,8 @@ impl App {
     }
 
     pub fn open_editor(&mut self, path: &Path) {
-        let mut editor = Editor::new();
+        let editor = Editor::with_file(path.to_path_buf());
         let title = path.to_string_lossy().to_string();
-        editor.open_file(path.to_path_buf());
         self.add_editor_tab(editor, title);
     }
 
@@ -172,6 +171,12 @@ impl App {
             action(self);
             self.show_command_palette = false;
             self.command_palette.reset();
+        }
+    }
+
+    pub fn poll_command_palette_files(&mut self) {
+        if self.show_command_palette {
+            self.command_palette.poll_files();
         }
     }
 }

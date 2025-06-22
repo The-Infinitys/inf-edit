@@ -18,6 +18,54 @@ pub struct Editor {
     _pty: Box<dyn MasterPty + Send>, // 保持しておくことでdropされないように
 }
 
+/// Helper function to initialize a PTY and spawn an editor process.
+fn init_pty(
+    path: Option<std::path::PathBuf>,
+) -> (
+    Arc<Mutex<Parser>>,
+    Arc<Mutex<Box<dyn Write + Send>>>,
+    Arc<AtomicBool>,
+    Box<dyn MasterPty + Send>,
+) {
+    let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+    let pty_system = native_pty_system();
+    let pty_pair = pty_system
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .expect("Failed to open PTY");
+
+    let mut cmd = CommandBuilder::new(editor);
+    if let Some(p) = path {
+        cmd.arg(p);
+    }
+    let _child = pty_pair.slave.spawn_command(cmd).expect("Failed to spawn editor");
+
+    let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
+    let writer = Arc::new(Mutex::new(pty_pair.master.take_writer().expect("clone writer")));
+    let dead = Arc::new(AtomicBool::new(false));
+
+    // Thread to stream PTY output to the parser
+    let parser_clone = Arc::clone(&parser);
+    let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
+    let dead_clone = dead.clone();
+    thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        while let Ok(n) = reader.read(&mut buf) {
+            if n == 0 {
+                dead_clone.store(true, Ordering::SeqCst);
+                break;
+            }
+            parser_clone.lock().unwrap().process(&buf[..n]);
+        }
+    });
+
+    (parser, writer, dead, pty_pair.master)
+}
+
 impl Default for Editor {
     fn default() -> Self {
         Self::new()
@@ -26,55 +74,22 @@ impl Default for Editor {
 
 impl Editor {
     pub fn new() -> Self {
-        let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-        let pty_system = native_pty_system();
-        let pty_pair = pty_system
-            .openpty(PtySize {
-                rows: 24,
-                cols: 80,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .expect("Failed to open PTY");
-
-        let cmd = CommandBuilder::new(editor);
-        let _child = pty_pair
-            .slave
-            .spawn_command(cmd)
-            .expect("Failed to spawn editor");
-
-        let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
-
-        // ライターを保持
-        let writer = Arc::new(Mutex::new(
-            pty_pair.master.take_writer().expect("clone writer"),
-        ));
-        let dead = Arc::new(AtomicBool::new(false));
-
-        // PTYからの出力をパーサに流し込むスレッド
-        {
-            let parser = Arc::clone(&parser);
-            let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
-            let dead_clone = dead.clone(); // Clone dead for the thread
-            thread::spawn(move || {
-                // Move the cloned dead into the thread
-                let mut buf = [0u8; 4096];
-                while let Ok(n) = reader.read(&mut buf) {
-                    if n == 0 {
-                        dead_clone.store(true, Ordering::SeqCst); // Use the cloned dead
-                        break;
-                    }
-                    let mut parser = parser.lock().unwrap();
-                    parser.process(&buf[..n]);
-                }
-            });
-        }
-
+        let (parser, writer, dead, _pty) = init_pty(None);
         Self {
             parser,
             writer,
             dead,
-            _pty: pty_pair.master,
+            _pty,
+        }
+    }
+
+    pub fn with_file(path: std::path::PathBuf) -> Self {
+        let (parser, writer, dead, _pty) = init_pty(Some(path));
+        Self {
+            parser,
+            writer,
+            dead,
+            _pty,
         }
     }
 
@@ -107,59 +122,6 @@ impl Editor {
         let cursor_x = inner_area.x + cur_x;
         let cursor_y = inner_area.y + cur_y.saturating_sub(1);
         f.set_cursor_position((cursor_x, cursor_y));
-    }
-
-    /// ファイルを開く
-    pub fn open_file(&mut self, path: std::path::PathBuf) {
-        // 新しいPTYとプロセスを作成
-        let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-        let pty_system = native_pty_system();
-        let pty_pair = pty_system
-            .openpty(PtySize {
-                rows: 24,
-                cols: 80,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .expect("Failed to open PTY");
-
-        let mut cmd = CommandBuilder::new(editor);
-        cmd.arg(path);
-        let _child = pty_pair
-            .slave
-            .spawn_command(cmd)
-            .expect("Failed to spawn editor");
-
-        let parser = Arc::new(Mutex::new(Parser::new(24, 80, 0)));
-        let writer = Arc::new(Mutex::new(
-            pty_pair.master.take_writer().expect("clone writer"),
-        ));
-        let dead = Arc::new(AtomicBool::new(false));
-
-        // PTYからの出力をパーサに流し込むスレッド
-        {
-            let parser = Arc::clone(&parser);
-            let mut reader = pty_pair.master.try_clone_reader().expect("clone reader");
-            let dead_clone = dead.clone(); // Clone dead for the thread
-            thread::spawn(move || {
-                // Move the cloned dead into the thread
-                let mut buf = [0u8; 4096];
-                while let Ok(n) = reader.read(&mut buf) {
-                    if n == 0 {
-                        dead_clone.store(true, Ordering::SeqCst); // Use the cloned dead
-                        break;
-                    }
-                    let mut parser = parser.lock().unwrap();
-                    parser.process(&buf[..n]);
-                }
-            });
-        }
-
-        // 新しいリソースで上書き
-        self.parser = parser;
-        self.writer = writer;
-        self.dead = dead;
-        self._pty = pty_pair.master;
     }
 
     pub fn is_dead(&self) -> bool {

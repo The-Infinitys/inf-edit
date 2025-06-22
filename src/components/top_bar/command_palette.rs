@@ -6,9 +6,13 @@ use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Clear, List, ListItem, ListState},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
-use std::{borrow::Cow, path::Path, sync::Arc};
+use std::{
+    borrow::Cow,
+    path::Path,
+    sync::{mpsc, Arc},
+};
 use walkdir::WalkDir;
 
 /// アプリケーションの状態を変更するためのアクションを定義します。
@@ -35,13 +39,13 @@ impl CommandItem {
         }
     }
 
-    /// アイテムが表すファイルパスを返します（ファイルアイテムの場合のみ）。
-    fn file_path(&self) -> Option<&str> {
-        match self {
-            CommandItem::File { path, .. } => Some(path),
-            _ => None,
-        }
-    }
+    // アイテムが表すファイルパスを返します（ファイルアイテムの場合のみ）。
+    // fn file_path(&self) -> Option<&str> {
+    //     match self {
+    //         CommandItem::File { path, .. } => Some(path),
+    //         _ => None,
+    //     }
+    // }
 }
 
 /// パレットのモード。コマンド検索かファイル検索かを切り替えます。
@@ -64,6 +68,8 @@ pub struct CommandPalette {
     filtered_indices: Vec<usize>,
     list_state: ListState,
     mode: PaletteMode,
+    is_searching: bool,
+    file_receiver: Option<mpsc::Receiver<CommandItem>>,
 }
 
 impl CommandPalette {
@@ -75,6 +81,8 @@ impl CommandPalette {
             filtered_indices: Vec::new(),
             list_state: ListState::default(),
             mode: PaletteMode::File, // デフォルトをファイル検索モードに変更
+            is_searching: false,
+            file_receiver: None,
         };
         s.enter_file_mode(); // 初期状態でファイルリストを読み込み、フィルタリング
         s
@@ -99,6 +107,10 @@ impl CommandPalette {
                 }),
             },
             CommandItem::Command {
+                name: "Settings: Open".to_string(),
+                action: Arc::new(|app| app.add_settings_tab()),
+            },
+            CommandItem::Command {
                 name: "View: Toggle Primary Sidebar".to_string(),
                 action: Arc::new(|app| app.toggle_primary_sidebar()),
             },
@@ -121,39 +133,50 @@ impl CommandPalette {
     pub fn enter_file_mode(&mut self) {
         self.mode = PaletteMode::File;
         self.input.clear();
-        if self.files.is_empty() {
-            self.files = WalkDir::new(".")
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().is_file())
-                .filter(|e| {
-                    let path_str = e.path().to_string_lossy();
-                    !path_str.contains(".git") && !path_str.contains("target")
-                })
-                .map(|entry| {
+        if self.files.is_empty() && !self.is_searching {
+            let (tx, rx) = mpsc::channel();
+            self.file_receiver = Some(rx);
+            self.is_searching = true;
+
+            std::thread::spawn(move || {
+                for entry in WalkDir::new(".")
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.file_type().is_file())
+                {
+                    let path_str = entry.path().to_string_lossy();
+                    if path_str.contains(".git") || path_str.contains("target") {
+                        continue;
+                    }
                     let name = entry.file_name().to_string_lossy().to_string();
-                    let path = entry.path().to_string_lossy().to_string();
-                    CommandItem::File { name, path }
-                })
-                .collect();
+                    let path = path_str.to_string();
+                    if tx.send(CommandItem::File { name, path }).is_err() {
+                        break; // Receiver has been dropped
+                    }
+                }
+            });
         }
         self.filter_items();
     }
 
     /// 入力に基づいてアイテムをフィルタリングします。
     fn filter_items(&mut self) {
-        let source_items = match self.mode {
-            PaletteMode::Command => &self.commands,
-            PaletteMode::File => &self.files,
+        let (source_items, filter_text) = match self.mode {
+            PaletteMode::Command => {
+                // コマンドモードでは、">" の後のテキストでフィルタリングする
+                let filter = self.input.strip_prefix('>').unwrap_or(&self.input);
+                (&self.commands, filter)
+            }
+            PaletteMode::File => (&self.files, self.input.as_str()),
         };
-        let input_lower = self.input.to_lowercase();
+        let input_lower = filter_text.to_lowercase();
 
         self.filtered_indices = source_items
             .iter()
             .enumerate()
             .filter(|(_, item)| {
                 let text_to_search = match item {
-                    CommandItem::Command { name, .. } => name.as_str(),
+                    CommandItem::Command { name, .. } => name.as_str(), // コマンド名で検索
                     CommandItem::File { path, .. } => path.as_str(),
                 };
                 text_to_search.to_lowercase().contains(&input_lower)
@@ -175,8 +198,8 @@ impl CommandPalette {
             KeyCode::Enter => return CommandPaletteEvent::Execute,
             KeyCode::Char(c) => {
                 self.input.push(c);
-                // If the input is just ">", switch to command mode.
-                if self.input == ">" {
+                // 入力が ">" で始まっていればコマンドモードに切り替える
+                if self.input.starts_with('>') {
                     self.mode = PaletteMode::Command;
                 }
                 self.filter_items();
@@ -187,8 +210,8 @@ impl CommandPalette {
                     return CommandPaletteEvent::Close;
                 }
                 self.input.pop();
-                // If the input becomes empty, switch back to file mode.
-                if self.input.is_empty() {
+                // 入力が ">" で始まらなくなったら（または空になったら）ファイルモードに戻す
+                if !self.input.starts_with('>') {
                     self.mode = PaletteMode::File;
                 }
                 self.filter_items();
@@ -228,6 +251,32 @@ impl CommandPalette {
         self.filter_items();
     }
 
+    /// Polls for asynchronously found files and updates the list.
+    pub fn poll_files(&mut self) {
+        let mut received_any = false;
+        let mut disconnected = false;
+
+        if let Some(rx) = &self.file_receiver {
+            while let Ok(file_item) = rx.try_recv() {
+                self.files.push(file_item);
+                received_any = true;
+            }
+            // If the channel is disconnected, the search is over.
+            if let Err(mpsc::TryRecvError::Disconnected) = rx.try_recv() {
+                disconnected = true;
+            }
+        }
+
+        if disconnected {
+            self.is_searching = false;
+            self.file_receiver = None;
+        }
+
+        if received_any {
+            self.filter_items();
+        }
+    }
+
     fn select_next(&mut self) {
         let len = self.filtered_indices.len();
         if len == 0 { return; }
@@ -259,6 +308,17 @@ impl CommandPalette {
             .iter()
             .map(|&i| ListItem::new(source_items[i].display_text().into_owned()))
             .collect();
+
+        // If searching, show a loading indicator until the first results arrive.
+        if self.is_searching && list_items.is_empty() {
+            let loading_text = "Searching for files...";
+            let loading_para = Paragraph::new(loading_text).alignment(Alignment::Center);
+            let block = Block::default()
+                .title("File Palette")
+                .borders(Borders::ALL);
+            f.render_widget(loading_para.block(block), area);
+            return;
+        }
 
         let title = match self.mode {
             PaletteMode::Command => "Command",
