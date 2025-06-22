@@ -1,8 +1,5 @@
 use crate::theme::Theme;
-use ratatui::{
-    prelude::*,
-    widgets::Paragraph,
-};
+use ratatui::{prelude::*, widgets::Paragraph};
 
 const LOGO: &[&str] = &[
     "██╗███╗ ██╗███████╗",
@@ -36,25 +33,33 @@ impl WelcomeWidget {
             .split(parent_layout[0])[0];
 
         let logo_text: Vec<Line> = LOGO.iter().map(|&s| Line::from(s).centered()).collect();
-
         let keybinds_text = vec![
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("  Ctrl-P", Style::default().add_modifier(Modifier::BOLD).fg(theme.highlight_fg)),
-                Span::raw("      Show Command Palette"),
-            ]).centered(),
-            Line::from(vec![
-                Span::styled("  Ctrl-B", Style::default().add_modifier(Modifier::BOLD).fg(theme.highlight_fg)),
-                Span::raw("      Toggle File Explorer"),
-            ]).centered(),
-            Line::from(vec![
-                Span::styled("  Ctrl-W", Style::default().add_modifier(Modifier::BOLD).fg(theme.highlight_fg)),
-                Span::raw("      Close Active Tab"),
-            ]).centered(),
+            ["Ctrl-P", "Show Command Pallete"],
+            ["Ctrl-B", "Toggle File Explorer"],
+            ["Ctrl-N", "Open Active Tab"],
+            ["Ctrl-W", "Close Active Tab"],
         ];
+        let keybinds_text: Vec<Line<'_>> = keybinds_text
+            .iter()
+            .map(|bindmap| {
+                Line::from(vec![
+                    Span::styled(
+                        bindmap[0],
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(theme.highlight_fg),
+                    ),
+                    Span::raw(bindmap[1]),
+                ])
+                .centered()
+            })
+            .collect();
 
-        let logo_paragraph = Paragraph::new(logo_text)
-            .style(Style::default().fg(theme.text_fg).add_modifier(Modifier::ITALIC));
+        let logo_paragraph = Paragraph::new(logo_text).style(
+            Style::default()
+                .fg(theme.text_fg)
+                .add_modifier(Modifier::ITALIC),
+        );
         let keybinds_paragraph =
             Paragraph::new(keybinds_text).style(Style::default().fg(theme.text_fg));
 
