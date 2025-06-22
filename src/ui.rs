@@ -1,17 +1,18 @@
 use anyhow::Result;
 use ratatui::{
-    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
+    widgets::Clear,
+    Terminal,
 };
 
 use crate::{
-    ActiveTarget,
     app::App,
     components::{
-        bottom_bar::BottomBar, main_widget::MainWidget, panel::Panel,
+        bottom_bar::BottomBar, main_widget::MainWidget, panel::Panel, // No top_bar here
         primary_sidebar::PrimarySideBar, secondary_sidebar::SecondarySideBar, top_bar::TopBar,
     },
+    ActiveTarget,
 };
 
 pub fn draw(
@@ -104,10 +105,10 @@ pub fn draw(
             app.active_target == ActiveTarget::PrimarySideBar,
         );
         // Render tabs in their dedicated, always-visible area
-        primary_sidebar.render_tabs(f, primary_sidebar_tabs_area);
+        primary_sidebar.render_tabs(f, primary_sidebar_tabs_area, &app.theme);
         // Render content only if the sidebar is shown
         if app.show_primary_sidebar {
-            primary_sidebar.render_content(f, primary_sidebar_content_area);
+            primary_sidebar.render_content(f, primary_sidebar_content_area, &app.theme);
         }
 
         // Render SecondarySideBar
@@ -117,7 +118,7 @@ pub fn draw(
                 app.active_secondary_sidebar_tab,
                 app.active_target == ActiveTarget::SecondarySideBar,
             );
-            secondary_sidebar.render(f, secondary_sidebar_area);
+            secondary_sidebar.render(f, secondary_sidebar_area, &app.theme);
         }
 
         // Assign Main Widget and Panel areas from the center vertical split
@@ -129,13 +130,13 @@ pub fn draw(
         };
 
         // Render MainWidget (Editor Tabs + Active Editor)
-        if !app.editors.is_empty() {
+        if !app.main_tabs.is_empty() {
             // Split the main widget area to have tabs on top
             let main_widget_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
                     Constraint::Length(1), // Area for tabs
-                    Constraint::Min(0),    // Area for editor content
+                    Constraint::Min(0),    // Area for content
                 ])
                 .split(main_widget_area);
 
@@ -143,13 +144,13 @@ pub fn draw(
             let content_area = main_widget_chunks[1];
 
             let mut main_widget = MainWidget::new(
-                &mut app.editors,
-                app.active_editor_tab,
+                &mut app.main_tabs,
+                app.active_main_tab,
                 app.active_target == ActiveTarget::Editor,
             );
 
-            main_widget.render_tabs(f, tabs_area);
-            main_widget.render_content(f, content_area);
+            main_widget.render_tabs(f, tabs_area, &app.theme);
+            main_widget.render_content(f, content_area, &app.theme);
         }
 
         // Render the Panel
@@ -172,15 +173,15 @@ pub fn draw(
                 app.active_target == ActiveTarget::Panel,
             );
 
-            panel.render_tabs(f, tabs_area);
-            panel.render_content(f, content_area);
+            panel.render_tabs(f, tabs_area, &app.theme);
+            panel.render_content(f, content_area, &app.theme);
         }
 
         // Render the Top Bar
         let mut top_bar = TopBar::new();
         let active_editor_title = app
             .editors
-            .get(app.active_editor_tab)
+            .get(app.active_main_tab)
             .map(|tab| tab.title.as_str())
             .unwrap_or("No Editor Open");
         top_bar.render(
@@ -188,26 +189,30 @@ pub fn draw(
             top_bar_area,
             app.active_target == ActiveTarget::Editor,
             active_editor_title,
-            &mut app.command_palette,
-            app.show_command_palette,
+            &app.theme,
         );
 
         // Render the Bottom Bar (formerly status bar)
         // Use the instance passed as a parameter
-        bottom_bar_instance.render(f, status_area, true);
+        bottom_bar_instance.render(f, status_area, true, &app.theme);
 
         // Render Help widget on top, if visible. It needs the full frame area to calculate its centered position.
 
-        // コマンドパレットの描画
+        // Render Command Palette as an overlay at the top
         if app.show_command_palette {
-            let size = f.area();
-            let palette_area = Rect {
-                x: (size.width.saturating_sub(40)) / 2,
-                y: (size.height.saturating_sub(10)) / 2,
-                width: 40,
-                height: 10,
+            let area = f.size();
+            let palette_width = (area.width as f32 * 0.6).min(100.0) as u16;
+            let list_len = app.command_palette.get_results_count();
+            let palette_height = (list_len as u16 + 3).min(area.height / 2);
+
+            let popup_area = Rect {
+                x: (area.width.saturating_sub(palette_width)) / 2,
+                y: 1, // Position it near the top bar
+                width: palette_width,
+                height: palette_height,
             };
-            app.command_palette.render(f, palette_area);
+            f.render_widget(Clear, popup_area); // Clear the area behind the palette
+            app.command_palette.render(f, palette_area, &app.theme);
         }
     })?;
     Ok(())

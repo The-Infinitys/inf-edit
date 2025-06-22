@@ -4,7 +4,7 @@ pub use self::file_view::FileView;
 pub mod component;
 pub mod git; // Add this line to expose the git module
 pub mod search;
-use self::component::PrimarySidebarComponent;
+use self::{component::PrimarySidebarComponent, search::SearchWidget};
 use crate::Tab;
 use ratatui::{
     prelude::*,
@@ -31,8 +31,8 @@ impl<'a> PrimarySideBar<'a> {
     }
 
     /// Renders the vertical tabs on the far left.
-    pub fn render_tabs(&mut self, f: &mut Frame, area: Rect) {
-        let tab_titles: Vec<ListItem> = self
+    pub fn render_tabs(&mut self, f: &mut Frame, area: Rect, theme: &Theme) {
+        let items: Vec<ListItem> = self
             .components
             .iter()
             .enumerate()
@@ -40,12 +40,12 @@ impl<'a> PrimarySideBar<'a> {
                 let icon = match tab.content {
                     PrimarySidebarComponent::FileView(_) => "📁",
                     PrimarySidebarComponent::Search(_) => "🔍",
-                    PrimarySidebarComponent::Git(_) => "🐙", // Add this arm for GitWidget
+                    PrimarySidebarComponent::Git(_) => "🐙",
                 };
                 let text = Span::from(format!("{} {}", icon, tab.title));
                 let mut list_item = ListItem::new(text);
                 if i == self.active_tab_index {
-                    list_item = list_item.style(Style::default().fg(Color::Green).bold());
+                    list_item = list_item.style(Style::default().fg(theme.highlight_fg).bold());
                 }
                 list_item
             })
@@ -53,14 +53,13 @@ impl<'a> PrimarySideBar<'a> {
 
         let tabs_list =
             List::new(tab_titles).block(Block::default().title("Tabs").borders(Borders::RIGHT));
-
         f.render_widget(tabs_list, area);
     }
 
     /// Renders the content of the active tab.
-    pub fn render_content(&mut self, f: &mut Frame, area: Rect) {
+    pub fn render_content(&mut self, f: &mut Frame, area: Rect, theme: &Theme) {
         let border_style = if self.is_active {
-            Style::default().fg(Color::Green)
+            Style::default().fg(theme.highlight_fg)
         } else {
             Style::default()
         };
@@ -71,9 +70,11 @@ impl<'a> PrimarySideBar<'a> {
             let content_area = content_block.inner(area);
             f.render_widget(content_block, area);
 
-            active_component
-                .content
-                .render(f, content_area, self.is_active);
+            match &mut active_component.content {
+                PrimarySidebarComponent::FileView(fv) => fv.render(f, content_area, self.is_active, theme),
+                PrimarySidebarComponent::Search(sw) => sw.render(f, content_area, self.is_active, theme),
+                PrimarySidebarComponent::Git(gw) => gw.render(f, content_area, self.is_active, theme),
+            }
         }
     }
 }

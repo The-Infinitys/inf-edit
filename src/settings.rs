@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use toml;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -79,6 +80,13 @@ impl Config {
         } else {
             Ok(Config::default())
         }
+    }
+
+    pub fn save(&self) -> Result<()> {
+        let path = Self::get_config_path()?;
+        let content = toml::to_string_pretty(self)?;
+        fs::write(path, content)?;
+        Ok(())
     }
 
     fn get_config_path() -> Result<PathBuf> {

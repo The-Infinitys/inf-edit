@@ -1,10 +1,11 @@
 use crate::components::notification::{send_notification, NotificationType};
+use crate::theme::Theme;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, List, ListItem},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
 };
-use crossterm::event::{KeyCode, KeyEvent};
 use std::fs;
 use std::collections::HashMap;
 use unicode_segmentation::UnicodeSegmentation;
@@ -45,6 +46,7 @@ pub enum CommandPaletteEvent {
     Exit,
     ExecuteCommand(String),
     OpenFile(String),
+    OpenSettings,
 }
 
 impl Default for CommandPalette {
@@ -104,6 +106,13 @@ impl CommandPalette {
                 send_notification("クイックオープン", NotificationType::Info);
             }),
         );
+        cp.add_command(
+            ">workbench.action.openSettings".to_string(),
+            "設定を開く".to_string(),
+            Box::new(|_cp| {
+                // This will be handled by the event enum
+            }),
+        );
         cp.update_mode_and_candidates();
         cp
     }
@@ -124,6 +133,13 @@ impl CommandPalette {
             },
         );
         self.update_mode_and_candidates();
+    }
+
+    pub fn get_results_count(&self) -> usize {
+        match self.mode {
+            PaletteMode::Command => self.command_candidates.len(),
+            PaletteMode::File => self.file_candidates.len(),
+        }
     }
 
     /// テキスト入力を受け付ける
@@ -243,6 +259,9 @@ impl CommandPalette {
                 match self.mode {
                     PaletteMode::Command => {
                         if let Some(cmd_name) = self.command_candidates.get(self.selected).cloned() {
+                            if cmd_name == ">workbench.action.openSettings" {
+                                return CommandPaletteEvent::OpenSettings;
+                            }
                             self.execute_selected_command();
                             CommandPaletteEvent::ExecuteCommand(cmd_name)
                         } else {
@@ -303,7 +322,7 @@ impl CommandPalette {
         }
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect) {
+    pub fn render(&self, f: &mut Frame, area: Rect, theme: &Theme) {
         let block = Block::default().borders(Borders::ALL).title("Command Palette");
         let input_line = Line::from(self.input.as_str());
         let input_paragraph = Paragraph::new(input_line).block(block.clone());
@@ -335,7 +354,7 @@ impl CommandPalette {
 
                     let items: Vec<ListItem> = items.iter().enumerate().map(|(i, name)| {
                         if i == self.selected {
-                            ListItem::new(name.clone()).style(Style::default().fg(Color::Green))
+                            ListItem::new(name.clone()).style(Style::default().fg(theme.highlight_fg))
                         } else {
                             ListItem::new(name.clone())
                         }
@@ -345,9 +364,9 @@ impl CommandPalette {
                             Block::default()
                                 .borders(Borders::ALL)
                                 .title("Select an Option")
-                                .style(Style::default().bg(Color::Black)),
+                                .style(Style::default().bg(theme.primary_bg)),
                         )
-                        .highlight_style(Style::default().bg(Color::DarkGray));
+                        .highlight_style(Style::default().bg(theme.highlight_bg));
                     f.render_widget(list, area);
                 }
                 InputMode::Check { prompt, items } => {
@@ -362,7 +381,7 @@ impl CommandPalette {
                             format!("  {}", name)
                         };
                         if i == self.selected {
-                            ListItem::new(display_text).style(Style::default().fg(Color::Green))
+                            ListItem::new(display_text).style(Style::default().fg(theme.highlight_fg))
                         } else {
                             ListItem::new(display_text)
                         }
@@ -372,9 +391,9 @@ impl CommandPalette {
                             Block::default()
                                 .borders(Borders::ALL)
                                 .title("Select Options")
-                                .style(Style::default().bg(Color::Black)),
+                                .style(Style::default().bg(theme.primary_bg)),
                         )
-                        .highlight_style(Style::default().bg(Color::DarkGray));
+                        .highlight_style(Style::default().bg(theme.highlight_bg));
                     f.render_widget(list, area);
                 }
             }
@@ -395,14 +414,14 @@ impl CommandPalette {
         let items: Vec<ListItem> = match self.mode {
             PaletteMode::Command => self.command_candidates.iter().enumerate().map(|(i, c)| {
                 if i == self.selected {
-                    ListItem::new(c.clone()).style(Style::default().fg(Color::Yellow))
+                    ListItem::new(c.clone()).style(Style::default().fg(theme.highlight_fg))
                 } else {
                     ListItem::new(c.clone())
                 }
             }).collect(),
             PaletteMode::File => self.file_candidates.iter().enumerate().map(|(i, name)| {
                 if i == self.selected {
-                    ListItem::new(name.clone()).style(Style::default().fg(Color::Green))
+                    ListItem::new(name.clone()).style(Style::default().fg(theme.highlight_fg))
                 } else {
                     ListItem::new(name.clone())
                 }
@@ -416,9 +435,9 @@ impl CommandPalette {
                         PaletteMode::Command => "Commands",
                         PaletteMode::File => "Files",
                     })
-                    .style(Style::default().bg(Color::Black)),
+                    .style(Style::default().bg(theme.primary_bg)),
             )
-            .highlight_style(Style::default().bg(Color::DarkGray));
+            .highlight_style(Style::default().bg(theme.highlight_bg));
         f.render_widget(list, list_area);
     }
 }

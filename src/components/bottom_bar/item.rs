@@ -3,13 +3,12 @@ use ratatui::{
     text::Line,
     widgets::Paragraph,
 };
+use crate::theme::Theme;
 use chrono::{DateTime, Local};
-#[allow(unused_imports)] // Allow unused import for colored, as it's used for String extension methods
-use colored::*;
 use std::{process::Command, time::SystemTime};
 
 pub trait BottomBarItem {
-    fn render_item(&self, f: &mut Frame, area: Rect);
+    fn render_item(&self, f: &mut Frame, area: Rect, theme: &Theme);
 }
 
 /// Renders a simple text string with a given alignment.
@@ -25,7 +24,7 @@ impl TextItem {
 }
 
 impl BottomBarItem for TextItem {
-    fn render_item(&self, f: &mut Frame, area: Rect) {
+    fn render_item(&self, f: &mut Frame, area: Rect, _theme: &Theme) {
         let paragraph = Paragraph::new(Line::from(self.text.clone())).alignment(self.alignment);
         f.render_widget(paragraph, area);
     }
@@ -78,9 +77,9 @@ impl GitInfoItem {
 }
 
 impl BottomBarItem for GitInfoItem {
-    fn render_item(&self, f: &mut Frame, area: Rect) {
-        let text = self.get_git_info().red().to_string();
-        let paragraph = Paragraph::new(Line::from(text)).alignment(Alignment::Left);
+    fn render_item(&self, f: &mut Frame, area: Rect, theme: &Theme) {
+        let text = self.get_git_info();
+        let paragraph = Paragraph::new(Line::from(Span::styled(text, Style::default().fg(theme.highlight_fg)))).alignment(Alignment::Left);
         f.render_widget(paragraph, area);
     }
 }
@@ -103,9 +102,9 @@ impl CurrentTimeItem {
 }
 
 impl BottomBarItem for CurrentTimeItem {
-    fn render_item(&self, f: &mut Frame, area: Rect) {
-        let text = self.get_current_time().yellow().to_string();
-        let paragraph = Paragraph::new(Line::from(text)).alignment(Alignment::Center);
+    fn render_item(&self, f: &mut Frame, area: Rect, theme: &Theme) {
+        let text = self.get_current_time();
+        let paragraph = Paragraph::new(Line::from(Span::styled(text, Style::default().fg(theme.text_fg)))).alignment(Alignment::Center);
         f.render_widget(paragraph, area);
     }
 }
@@ -127,9 +126,9 @@ impl ResourceUsageItem {
 }
 
 impl BottomBarItem for ResourceUsageItem {
-    fn render_item(&self, f: &mut Frame, area: Rect) {
-        let text = self.get_resource_usage().green().to_string();
-        let paragraph = Paragraph::new(Line::from(text)).alignment(Alignment::Right);
+    fn render_item(&self, f: &mut Frame, area: Rect, theme: &Theme) {
+        let text = self.get_resource_usage();
+        let paragraph = Paragraph::new(Line::from(Span::styled(text, Style::default().fg(theme.text_fg)))).alignment(Alignment::Right);
         f.render_widget(paragraph, area);
     }
 }

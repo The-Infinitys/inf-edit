@@ -5,6 +5,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph}, // Removed unused KeyModifiers
 };
 use crossterm::event::{KeyCode, KeyEvent};
+use crate::theme::Theme;
 
 #[derive(Default)]
 pub struct SearchWidget {
@@ -50,12 +51,12 @@ impl SearchWidget {
         }
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, is_active: bool) {
+    pub fn render(&self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
         let mut search_block = Block::default()
             .title("Search")
             .borders(Borders::ALL);
         if is_active {
-            search_block = search_block.style(Style::default().fg(Color::Yellow));
+            search_block = search_block.style(Style::default().fg(theme.highlight_fg));
         }
         let input_line = Line::from(self.query.as_str());
         let input_paragraph = Paragraph::new(input_line).block(search_block);

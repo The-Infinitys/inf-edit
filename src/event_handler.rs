@@ -4,14 +4,12 @@ use std::env;
 use std::time::Duration;
 
 use crate::{
-    ActiveTarget,
     app::App,
     components::{
-        main_widget::editor::Editor,
         panel::term::Term,
         primary_sidebar::component::PrimarySidebarComponent, // Keep this import
-        secondary_sidebar::component::SecondarySidebarComponent, // Add this import
     },
+    ActiveTarget, MainWidgetContent,
 };
 
 pub enum AppEvent {
@@ -19,16 +17,32 @@ pub enum AppEvent {
     Continue,
 }
 
-// const DEBOUNCE_DURATION: Duration = Duration::from_millis(50); // Debounce for AltGr or similar issues
-// static LAST_CTRL_ALT_EVENT_TIME: std::sync::OnceLock<std::sync::Mutex<Instant>> =
-//     std::sync::OnceLock::new();
+/// Converts a KeyEvent to a string representation like "Ctrl-C" or "Alt-H".
+fn key_event_to_string(key: event::KeyEvent) -> Option<String> {
+    let mut parts = Vec::new();
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        parts.push("Ctrl");
+    }
+    if key.modifiers.contains(KeyModifiers::ALT) {
+        parts.push("Alt");
+    }
+    if key.modifiers.contains(KeyModifiers::SHIFT) {
+        parts.push("Shift");
+    }
+
+    let key_str = match key.code {
+        KeyCode::Char(c) => c.to_uppercase().to_string(),
+        KeyCode::F(n) => format!("F{}", n),
+        _ => return None, // Only handle a subset of keys for global bindings
+    };
+    parts.push(&key_str);
+    Some(parts.join("-"))
+}
 
 pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     if event::poll(Duration::from_millis(100))? {
         if let Event::Key(key) = event::read()? {
-            // コマンドパレット中の処理
             if app.show_command_palette {
-                // グローバルショートカット
                 if key.modifiers == KeyModifiers::CONTROL
                     && (key.code == KeyCode::Char('q') || key.code == KeyCode::Char('c'))
                 {
@@ -54,34 +68,44 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                         app.show_command_palette = false;
                         // 追加で必要な処理があればここに
                     }
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::OpenSettings => {
+                        app.add_settings_tab();
+                        app.show_command_palette = false;
+                    }
                     crate::components::top_bar::command_palette::CommandPaletteEvent::OpenFile(path) => {
                         // ファイルを開く処理例
-                        let mut editor = Editor::new();
+                        let mut editor = crate::components::main_widget::editor::Editor::new();
                         let title = path.clone();
                         editor.open_file(path.into());
                         app.add_editor_tab(editor, title);
                         app.show_command_palette = false;
                     }
-                    crate::components::top_bar::command_palette::CommandPaletteEvent::None => {}
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::None => {} // None is a valid event, do nothing.
                 }
                 return Ok(AppEvent::Continue);
             }
 
-
             // --- Check for dead processes and remove tabs ---
             // Editors
-            if !app.editors.is_empty() && app.editors[app.active_editor_tab].content.is_dead() {
-                app.editors.remove(app.active_editor_tab);
-                if app.editors.is_empty() {
-                    // If all editors are closed, create a new default one
-                    app.add_editor_tab(Editor::new(), "Editor 1".to_string());
-                    app.active_editor_tab = 0;
-                } else if app.active_editor_tab >= app.editors.len() {
-                    app.active_editor_tab = app.editors.len() - 1;
+            if !app.main_tabs.is_empty() {
+                let mut is_dead = false;
+                if let Some(tab) = app.main_tabs.get(app.active_main_tab) {
+                    if let MainWidgetContent::Editor(editor) = &tab.content {
+                        if editor.is_dead() {
+                            is_dead = true;
+                        }
+                    }
                 }
-                // If the active target was editor, keep it focused
-                if app.active_target == ActiveTarget::Editor {
-                    return Ok(AppEvent::Continue);
+                if is_dead {
+                    app.main_tabs.remove(app.active_main_tab);
+                    if app.main_tabs.is_empty() {
+                        app.add_editor_tab(
+                            crate::components::main_widget::editor::Editor::new(),
+                            "Editor 1".to_string(),
+                        );
+                    } else if app.active_main_tab >= app.main_tabs.len() {
+                        app.active_main_tab = app.main_tabs.len() - 1;
+                    }
                 }
             }
 
@@ -103,274 +127,178 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             }
             // --- End of dead process check ---
 
-            // Global quit shortcuts
-            if key.modifiers == KeyModifiers::CONTROL
-                && (key.code == KeyCode::Char('q') || key.code == KeyCode::Char('c'))
-            {
-                return Ok(AppEvent::Quit);
-            }
-
-            // Toggle File View
-            // - If hidden: show and focus.
-            // - If visible and focused: hide and focus editor/panel.
-            // - If visible and not focused: just focus.
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('b') {
-                if !app.show_primary_sidebar {
-                    app.show_primary_sidebar = true;
-                    app.active_target = ActiveTarget::PrimarySideBar;
-                } else if app.active_target == ActiveTarget::PrimarySideBar {
-                    app.show_primary_sidebar = false;
-                    app.active_target = if !app.editors.is_empty() {
-                        ActiveTarget::Editor
-                    } else if app.show_panel {
-                        ActiveTarget::Panel
-                    } else {
-                        ActiveTarget::Editor // Fallback
-                    };
-                } else {
-                    app.active_target = ActiveTarget::PrimarySideBar;
-                }
-                return Ok(AppEvent::Continue);
-            }
-
-            // Toggle Panel (Terminal)
-            // - If hidden: show and focus.
-            // - If visible and focused: hide and focus editor/sidebar.
-            // - If visible and not focused: just focus.
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('j') {
-                // Helper to get CWD for new terminals
-                let cwd_for_new_term = app
-                    .primary_sidebar_components
-                    .get(app.active_primary_sidebar_tab)
-                    .and_then(|tab| {
-                        if let PrimarySidebarComponent::FileView(fv) = &tab.content {
-                            Some(fv.current_path().clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .or_else(|| env::current_dir().ok());
-
-                if !app.show_panel {
-                    // Case 1: Panel is hidden. We want to show it.
-                    if app.terminals.is_empty() {
-                        // Create the first terminal if none exist.
-                        let term = Term::new(cwd_for_new_term)?;
-                        app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
-                    } else if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
-                        if tab.content.is_dead() {
-                            // If the active terminal is dead, restart it.
-                            tab.content = Term::new(cwd_for_new_term)?;
-                        }
-                    }
-                    app.show_panel = true;
-                    app.active_target = ActiveTarget::Panel;
-                } else {
-                    // Case 2: Panel is visible.
-                    if app.active_target == ActiveTarget::Panel {
-                        // It's visible and focused, so hide it.
-                        app.show_panel = false;
-                        app.active_target = if !app.editors.is_empty() {
-                            ActiveTarget::Editor
-                        } else if app.show_primary_sidebar {
-                            ActiveTarget::PrimarySideBar
-                        } else {
-                            ActiveTarget::Editor
-                        };
-                    } else {
-                        // It's visible but not focused. We want to focus it.
-                        // Before focusing, check if it's dead and restart if needed.
-                        if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
-                            if tab.content.is_dead() {
-                                tab.content = Term::new(cwd_for_new_term)?;
-                            }
-                        }
-                        app.active_target = ActiveTarget::Panel;
-                    }
-                }
-                return Ok(AppEvent::Continue);
-            }
-
-            // Toggle Help Widget (Ctrl+Alt+B)
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL | KeyModifiers::ALT)
-                && key.code == KeyCode::Char('b')
-            {
-                let mut help_is_now_visible = false;
-                if let Some(tab) = app
-                    .secondary_sidebar_components
-                    .get_mut(app.active_secondary_sidebar_tab)
-                {
-                    // The compiler warns this is an irrefutable pattern because the secondary sidebar
-                    // currently only ever contains a Help widget. Using `let` is more direct.
-                    // If other component types are added later, this will become a compile error,
-                    // prompting a necessary change back to `if let` or `match`.
-                    let SecondarySidebarComponent::Help(help_widget) = &mut tab.content;
-                    help_is_now_visible = help_widget.toggle_visibility(); // Get the new state
-                }
-
-                if help_is_now_visible {
-                    app.show_secondary_sidebar = true;
-                    app.active_target = ActiveTarget::SecondarySideBar;
-                } else if app.active_target == ActiveTarget::SecondarySideBar {
-                    app.active_target = ActiveTarget::Editor;
-                }
-                return Ok(AppEvent::Continue);
-            }
-
-            // Switch focus (Ctrl+K) - Cycle through visible and non-empty targets
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('k') {
-                let mut targets = Vec::new();
-                if !app.editors.is_empty() {
-                    targets.push(ActiveTarget::Editor);
-                }
-                if app.show_panel && !app.terminals.is_empty() {
-                    targets.push(ActiveTarget::Panel);
-                }
-                if app.show_primary_sidebar {
-                    targets.push(ActiveTarget::PrimarySideBar);
-                }
-                // Secondary sidebar is usually a modal, not part of main focus cycle.
-
-                if targets.is_empty() {
-                    return Ok(AppEvent::Continue); // No targets to switch to
-                }
-
-                let current_idx = targets.iter().position(|&t| t == app.active_target);
-                let next_idx = match current_idx {
-                    Some(idx) => (idx + 1) % targets.len(),
-                    None => 0, // If current target is not in the list (e.g., SecondarySidebar or hidden), start from first available
-                };
-                app.active_target = targets[next_idx];
-
-                // Ensure panel visibility if we switch to it
-                if app.active_target == ActiveTarget::Panel && !app.show_panel {
-                    app.show_panel = true;
-                }
-
-                return Ok(AppEvent::Continue);
-            }
-
-            // Toggle Command Palette (Ctrl+P)
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('p') {
-                app.show_command_palette = !app.show_command_palette;
-                return Ok(AppEvent::Continue);
-            }
-
-            // New Tab (Ctrl+N) - Editor or Terminal based on current focus
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('n') {
-                match app.active_target {
-                    ActiveTarget::Editor => {
-                        let editor = Editor::new();
-                        app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
-                        // Focus remains on Editor, panel remains hidden.
-                    }
-                    ActiveTarget::Panel => {
-                        let cwd_for_new_term = app
-                            .primary_sidebar_components
-                            .get(app.active_primary_sidebar_tab)
-                            .and_then(|tab| {
-                                if let PrimarySidebarComponent::FileView(fv) = &tab.content {
-                                    Some(fv.current_path().clone())
+            // --- Global Keybindings from Config ---
+            if let Some(key_str) = key_event_to_string(key) {
+                if let Some(action) = app.config.keybindings.global.get(&key_str).cloned() {
+                    match action.as_str() {
+                        "quit" => return Ok(AppEvent::Quit),
+                        "toggle_primary_sidebar" => {
+                            if !app.show_primary_sidebar {
+                                app.show_primary_sidebar = true;
+                                app.active_target = ActiveTarget::PrimarySideBar;
+                            } else if app.active_target == ActiveTarget::PrimarySideBar {
+                                app.show_primary_sidebar = false;
+                                app.active_target = if !app.editors.is_empty() {
+                                    ActiveTarget::Editor
+                                } else if app.show_panel {
+                                    ActiveTarget::Panel
                                 } else {
-                                    None
+                                    ActiveTarget::Editor // Fallback
+                                };
+                            } else {
+                                app.active_target = ActiveTarget::PrimarySideBar;
+                            }
+                        }
+                        "toggle_panel" => {
+                            let cwd_for_new_term = app
+                                .primary_sidebar_components
+                                .get(app.active_primary_sidebar_tab)
+                                .and_then(|tab| match &tab.content {
+                                    PrimarySidebarComponent::FileView(fv) => {
+                                        Some(fv.current_path().clone())
+                                    }
+                                    _ => None,
+                                })
+                                .or_else(|| env::current_dir().ok());
+
+                            if !app.show_panel {
+                                if app.terminals.is_empty() {
+                                    let term = Term::new(cwd_for_new_term)?;
+                                    app.add_terminal_tab(
+                                        term,
+                                        format!("Term {}", app.terminals.len() + 1),
+                                    );
+                                } else if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                                    if tab.content.is_dead() {
+                                        tab.content = Term::new(cwd_for_new_term)?;
+                                    }
                                 }
-                            })
-                            .or_else(|| env::current_dir().ok());
-                        let term = Term::new(cwd_for_new_term)?;
-                        app.add_terminal_tab(term, format!("Term {}", app.terminals.len() + 1));
-                        // Focus remains on Panel, panel remains visible.
-                    }
-                    _ => {
-                        // For sidebars or other targets, default to new editor
-                        let editor = Editor::new();
-                        app.add_editor_tab(editor, format!("Editor {}", app.editors.len() + 1));
-                        app.active_target = ActiveTarget::Editor; // Explicitly set focus to editor
-                        app.show_panel = false; // Hide panel if it was visible and we opened an editor
-                    }
-                }
-                return Ok(AppEvent::Continue);
-            }
-
-            // Close Tab (Ctrl+W)
-            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
-                match app.active_target {
-                    ActiveTarget::Editor => {
-                        if !app.editors.is_empty() {
-                            app.editors.remove(app.active_editor_tab);
-                            if app.editors.is_empty() {
-                                app.add_editor_tab(Editor::new(), "Editor 1".to_string()); // Always keep at least one editor
-                                app.active_editor_tab = 0;
-                            } else if app.active_editor_tab >= app.editors.len() {
-                                app.active_editor_tab = app.editors.len().saturating_sub(1);
+                                app.show_panel = true;
+                                app.active_target = ActiveTarget::Panel;
+                            } else if app.active_target == ActiveTarget::Panel {
+                                app.show_panel = false;
+                                app.active_target = if !app.editors.is_empty() {
+                                    ActiveTarget::Editor
+                                } else if app.show_primary_sidebar {
+                                    ActiveTarget::PrimarySideBar
+                                } else {
+                                    ActiveTarget::Editor
+                                };
+                            } else {
+                                if let Some(tab) = app.terminals.get_mut(app.active_terminal_tab) {
+                                    if tab.content.is_dead() {
+                                        tab.content = Term::new(cwd_for_new_term)?;
+                                    }
+                                }
+                                app.active_target = ActiveTarget::Panel;
                             }
                         }
-                    }
-                    ActiveTarget::Panel => {
-                        if !app.terminals.is_empty() {
-                            app.terminals.remove(app.active_terminal_tab);
-                            if app.terminals.is_empty() {
-                                app.show_panel = false; // Hide panel if no terminals left
-                                app.active_target = ActiveTarget::Editor; // Switch focus
-                            } else if app.active_terminal_tab >= app.terminals.len() {
-                                app.active_terminal_tab = app.terminals.len().saturating_sub(1);
+                        "cycle_focus" => {
+                            let mut targets = Vec::new();
+                            if !app.main_tabs.is_empty() {
+                                targets.push(ActiveTarget::Editor);
+                            }
+                            if app.show_panel && !app.terminals.is_empty() {
+                                targets.push(ActiveTarget::Panel);
+                            }
+                            if app.show_primary_sidebar {
+                                targets.push(ActiveTarget::PrimarySideBar);
+                            }
+
+                            if !targets.is_empty() {
+                                let current_idx = targets.iter().position(|&t| t == app.active_target);
+                                let next_idx = match current_idx {
+                                    Some(idx) => (idx + 1) % targets.len(),
+                                    None => 0,
+                                };
+                                app.active_target = targets[next_idx];
                             }
                         }
-                    }
-                    _ => {} // Do nothing for sidebars
-                }
-                return Ok(AppEvent::Continue);
-            }
-
-            // Switch Editor/Terminal Tabs (Alt+H for previous, Alt+L for next)
-            if key.modifiers == KeyModifiers::ALT {
-                match key.code {
-                    KeyCode::Char('h') => {
-                        // Previous Tab
-                        if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
-                            app.active_editor_tab = if app.active_editor_tab == 0 {
-                                app.editors.len() - 1
-                            } else {
-                                app.active_editor_tab - 1
-                            };
-                        } else if app.active_target == ActiveTarget::Panel
-                            && !app.terminals.is_empty()
-                        {
-                            app.active_terminal_tab = if app.active_terminal_tab == 0 {
-                                app.terminals.len() - 1
-                            } else {
-                                app.active_terminal_tab - 1
-                            };
-                        } else if app.active_target == ActiveTarget::PrimarySideBar
-                            && !app.primary_sidebar_components.is_empty()
-                        {
-                            app.active_primary_sidebar_tab = if app.active_primary_sidebar_tab == 0 {
-                                app.primary_sidebar_components.len() - 1
-                            } else {
-                                app.active_primary_sidebar_tab - 1
-                            };
+                        "toggle_command_palette" => {
+                            app.show_command_palette = !app.show_command_palette;
                         }
-                        return Ok(AppEvent::Continue);
+                        "new_tab" => match app.active_target {
+                            ActiveTarget::Editor => {
+                                let editor = crate::components::main_widget::editor::Editor::new();
+                                app.add_editor_tab(
+                                    editor,
+                                    format!("Editor {}", app.main_tabs.len() + 1),
+                                );
+                            }
+                            ActiveTarget::Panel => {
+                                let cwd = env::current_dir().ok();
+                                let term = Term::new(cwd)?;
+                                app.add_terminal_tab(
+                                    term,
+                                    format!("Term {}", app.terminals.len() + 1),
+                                );
+                            }
+                            _ => {
+                                let editor = crate::components::main_widget::editor::Editor::new();
+                                app.add_editor_tab(editor, format!("Editor {}", app.main_tabs.len() + 1));
+                                app.active_target = ActiveTarget::Editor;
+                            }
+                        },
+                        "close_tab" => match app.active_target {
+                            ActiveTarget::Editor => {
+                                if !app.main_tabs.is_empty() {
+                                    app.main_tabs.remove(app.active_main_tab);
+                                    if app.main_tabs.is_empty() {
+                                        app.add_editor_tab(
+                                            crate::components::main_widget::editor::Editor::new(),
+                                            "Editor 1".to_string(),
+                                        );
+                                    } else if app.active_main_tab >= app.main_tabs.len() {
+                                        app.active_main_tab = app.main_tabs.len().saturating_sub(1);
+                                    }
+                                }
+                            }
+                            ActiveTarget::Panel => {
+                                if !app.terminals.is_empty() {
+                                    app.terminals.remove(app.active_terminal_tab);
+                                    if app.terminals.is_empty() {
+                                        app.show_panel = false;
+                                        app.active_target = ActiveTarget::Editor;
+                                    } else if app.active_terminal_tab >= app.terminals.len() {
+                                        app.active_terminal_tab = app.terminals.len().saturating_sub(1);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        },
+                        "prev_tab" => match app.active_target {
+                            ActiveTarget::Editor if !app.main_tabs.is_empty() => {
+                                app.active_main_tab = app
+                                    .active_main_tab
+                                    .checked_sub(1)
+                                    .unwrap_or(app.main_tabs.len() - 1);
+                            }
+                            ActiveTarget::Panel if !app.terminals.is_empty() => {
+                                app.active_terminal_tab = app
+                                    .active_terminal_tab
+                                    .checked_sub(1)
+                                    .unwrap_or(app.terminals.len() - 1);
+                            }
+                            ActiveTarget::PrimarySideBar if !app.primary_sidebar_components.is_empty() => {
+                                app.active_primary_sidebar_tab = app.active_primary_sidebar_tab.checked_sub(1).unwrap_or(app.primary_sidebar_components.len() - 1);
+                            }
+                            _ => {}
+                        },
+                        "next_tab" => match app.active_target {
+                            ActiveTarget::Editor if !app.main_tabs.is_empty() => {
+                                app.active_main_tab = (app.active_main_tab + 1) % app.main_tabs.len();
+                            }
+                            ActiveTarget::Panel if !app.terminals.is_empty() => {
+                                app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
+                            }
+                            ActiveTarget::PrimarySideBar if !app.primary_sidebar_components.is_empty() => {
+                                app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len()
+                            }
+                            _ => {}
+                        };
+                        _ => {} // Unhandled action
                     }
-                    KeyCode::Char('l') => {
-                        // Next Tab
-                        if app.active_target == ActiveTarget::Editor && !app.editors.is_empty() {
-                            app.active_editor_tab = (app.active_editor_tab + 1) % app.editors.len();
-                        } else if app.active_target == ActiveTarget::Panel
-                            && !app.terminals.is_empty()
-                        {
-                            app.active_terminal_tab =
-                                (app.active_terminal_tab + 1) % app.terminals.len();
-                        } else if app.active_target == ActiveTarget::PrimarySideBar
-                            && !app.primary_sidebar_components.is_empty()
-                        {
-                            app.active_primary_sidebar_tab =
-                                (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len();
-                        }
-                        return Ok(AppEvent::Continue);
-                    }
-                    _ => {}
+                    return Ok(AppEvent::Continue);
                 }
             }
 
@@ -425,8 +353,15 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
             // Component-specific key handling
             match app.active_target {
                 ActiveTarget::Editor => {
-                    if let Some(tab) = app.editors.get_mut(app.active_editor_tab) {
-                        send_key_to_terminal(&tab.content, key);
+                    if let Some(tab) = app.main_tabs.get_mut(app.active_main_tab) {
+                        match &mut tab.content {
+                            MainWidgetContent::Editor(editor) => {
+                                send_key_to_terminal(editor, key);
+                            }
+                            MainWidgetContent::SettingsEditor(_settings_editor) => {
+                                // TODO: Implement key handling for settings editor
+                            }
+                        }
                     }
                 }
                 ActiveTarget::Panel => {
@@ -448,7 +383,8 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 if let Some(path) = f_view.selected_file() {
                                     // The selected_file() method correctly returns None for directories.
                                     let mut editor = Editor::new();
-                                    let title = path.to_string_lossy().to_string(); // Full path for title
+                                let title = path.to_string_lossy().to_string();
+                                // Full path for title
                                     editor.open_file(path);
                                     app.add_editor_tab(editor, title);
                                     return Ok(AppEvent::Continue);
