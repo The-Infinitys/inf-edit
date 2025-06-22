@@ -1,6 +1,7 @@
 use crate::{settings::Config, theme::Theme};
 use ratatui::{
     prelude::*,
+    crossterm::event::{KeyCode, KeyEvent},
     widgets::{Block, Borders, List, ListItem, ListState},
 };
 
@@ -51,12 +52,41 @@ impl SettingsEditor {
         f.render_stateful_widget(list, area, &mut self.state);
     }
 
-    // Note: Key handling for editing values is not implemented in this step.
-    // pub fn handle_key(&mut self, key: KeyEvent, app: &mut App) {
-    //     match key.code {
-    //         KeyCode::Up => self.previous(),
-    //         KeyCode::Down => self.next(app.config.keybindings.global.len() + ...),
-    //         _ => {}
-    //     }
-    // }
+    pub fn handle_key(&mut self, key: KeyEvent, config: &Config) {
+        // Calculate total items dynamically based on the config
+        let mut total_items = 0;
+        total_items += 1; // "[Keybindings]" header
+        total_items += config.keybindings.global.len(); // Actual keybindings
+        total_items += 1; // Empty spacer
+        total_items += 1; // "[Theme]" header
+        total_items += 5; // Theme properties (primary_bg, secondary_bg, text_fg, highlight_fg, highlight_bg)
+
+        match key.code {
+            KeyCode::Up => self.previous(total_items),
+            KeyCode::Down => self.next(total_items),
+            _ => {}
+        }
+    }
+
+    fn previous(&mut self, total_items: usize) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    total_items.saturating_sub(1) // Go to last item
+                } else {
+                    i - 1
+                }
+            }
+            None => 0, // Select first item if nothing is selected
+        };
+        self.state.select(Some(i));
+    }
+
+    fn next(&mut self, total_items: usize) {
+        let i = match self.state.selected() {
+            Some(i) => (i + 1) % total_items, // Cycle through items
+            None => 0, // Select first item if nothing is selected
+        };
+        self.state.select(Some(i));
+    }
 }

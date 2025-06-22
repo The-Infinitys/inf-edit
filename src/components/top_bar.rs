@@ -21,7 +21,7 @@ impl TopBar {
 
     pub fn render(&mut self, f: &mut Frame, area: Rect, _is_active: bool, title: &str, command_palette: &mut CommandPalette, show_command_palette: bool, theme: &crate::theme::Theme) {
         let top_bar_block = Block::default()
-            .borders(Borders::BOTTOM)
+            .borders(Borders::NONE)
             .style(Style::default().fg(Color::White));
 
         if show_command_palette {

@@ -194,6 +194,25 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 app.active_target = ActiveTarget::Panel;
                             }
                         }
+                        "toggle_secondary_sidebar" => {
+                            if !app.show_secondary_sidebar {
+                                app.show_secondary_sidebar = true;
+                                app.active_target = ActiveTarget::SecondarySideBar;
+                            } else if app.active_target == ActiveTarget::SecondarySideBar {
+                                app.show_secondary_sidebar = false;
+                                app.active_target = if !app.main_tabs.is_empty() {
+                                    ActiveTarget::Editor
+                                } else if app.show_primary_sidebar {
+                                    ActiveTarget::PrimarySideBar
+                                } else if app.show_panel {
+                                    ActiveTarget::Panel
+                                } else {
+                                    ActiveTarget::Editor // Fallback
+                                };
+                            } else {
+                                app.active_target = ActiveTarget::SecondarySideBar;
+                            }
+                        }
                         "cycle_focus" => {
                             let mut targets = Vec::new();
                             if !app.main_tabs.is_empty() {
@@ -359,8 +378,8 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                             MainWidgetContent::Editor(editor) => {
                                 send_key_to_terminal(editor, key);
                             }
-                            MainWidgetContent::SettingsEditor(_settings_editor) => {
-                                // TODO: Implement key handling for settings editor
+                            MainWidgetContent::SettingsEditor(settings_editor) => {
+                                settings_editor.handle_key(key, &app.config);
                             }
                         }
                     }

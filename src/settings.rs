@@ -55,6 +55,7 @@ impl Default for Keybindings {
         global.insert("Ctrl-W".to_string(), "close_tab".to_string());
         global.insert("Alt-H".to_string(), "prev_tab".to_string());
         global.insert("Alt-L".to_string(), "next_tab".to_string());
+        global.insert("Ctrl-Alt-B".to_string(), "toggle_secondary_sidebar".to_string());
         Self { global }
     }
 }
