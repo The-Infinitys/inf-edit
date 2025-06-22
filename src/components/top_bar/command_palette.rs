@@ -1,8 +1,8 @@
+use crate::theme::Theme;
 use crate::{
     app::App,
     components::notification::{send_notification, NotificationType},
 };
-use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
@@ -33,7 +33,10 @@ impl CommandItem {
             CommandItem::Command { name, .. } => Cow::Borrowed(name),
             CommandItem::File { name, path } => {
                 let p = Path::new(path);
-                let parent_dir = p.parent().unwrap_or_else(|| Path::new("")).to_string_lossy();
+                let parent_dir = p
+                    .parent()
+                    .unwrap_or_else(|| Path::new(""))
+                    .to_string_lossy();
                 Cow::Owned(format!("{}: {}", name, parent_dir))
             }
         }
@@ -72,6 +75,12 @@ pub struct CommandPalette {
     file_receiver: Option<mpsc::Receiver<CommandItem>>,
 }
 
+impl Default for CommandPalette {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommandPalette {
     pub fn new() -> Self {
         let mut s = Self {
@@ -101,7 +110,10 @@ impl CommandPalette {
                     if let Some(editor) = app.get_active_editor_mut() {
                         // This requires you to implement the `save` method on your Editor struct.
                         if let Err(e) = editor.save() {
-                             send_notification(format!("Error saving file: {}", e), NotificationType::Error);
+                            send_notification(
+                                format!("Error saving file: {}", e),
+                                NotificationType::Error,
+                            );
                         }
                     }
                 }),
@@ -226,18 +238,18 @@ impl CommandPalette {
     /// 選択されているアイテムのアクションを返します。
     pub fn get_selected_action(&self) -> Option<Action> {
         self.list_state.selected().and_then(|selected_idx| {
-            self.filtered_indices.get(selected_idx).and_then(|&item_idx| {
+            self.filtered_indices.get(selected_idx).map(|&item_idx| {
                 let item = match self.mode {
                     PaletteMode::Command => &self.commands[item_idx],
                     PaletteMode::File => &self.files[item_idx],
                 };
                 match item {
-                    CommandItem::Command { action, .. } => Some(action.clone()),
+                    CommandItem::Command { action, .. } => action.clone(),
                     CommandItem::File { path, .. } => {
                         let path_clone = path.clone();
-                        Some(Arc::new(move |app| {
+                        Arc::new(move |app: &mut App| {
                             app.open_editor(Path::new(&path_clone));
-                        }))
+                        })
                     }
                 }
             })
@@ -279,15 +291,22 @@ impl CommandPalette {
 
     fn select_next(&mut self) {
         let len = self.filtered_indices.len();
-        if len == 0 { return; }
+        if len == 0 {
+            return;
+        }
         let i = self.list_state.selected().map_or(0, |i| (i + 1) % len);
         self.list_state.select(Some(i));
     }
 
     fn select_previous(&mut self) {
         let len = self.filtered_indices.len();
-        if len == 0 { return; }
-        let i = self.list_state.selected().map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+        if len == 0 {
+            return;
+        }
+        let i = self
+            .list_state
+            .selected()
+            .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
         self.list_state.select(Some(i));
     }
 
@@ -313,9 +332,7 @@ impl CommandPalette {
         if self.is_searching && list_items.is_empty() {
             let loading_text = "Searching for files...";
             let loading_para = Paragraph::new(loading_text).alignment(Alignment::Center);
-            let block = Block::default()
-                .title("File Palette")
-                .borders(Borders::ALL);
+            let block = Block::default().title("File Palette").borders(Borders::ALL);
             f.render_widget(loading_para.block(block), area);
             return;
         }

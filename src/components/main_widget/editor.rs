@@ -18,15 +18,15 @@ pub struct Editor {
     _pty: Box<dyn MasterPty + Send>, // 保持しておくことでdropされないように
 }
 
-/// Helper function to initialize a PTY and spawn an editor process.
-fn init_pty(
-    path: Option<std::path::PathBuf>,
-) -> (
+type PtyResources = (
     Arc<Mutex<Parser>>,
     Arc<Mutex<Box<dyn Write + Send>>>,
     Arc<AtomicBool>,
     Box<dyn MasterPty + Send>,
-) {
+);
+
+/// Helper function to initialize a PTY and spawn an editor process.
+fn init_pty(path: Option<std::path::PathBuf>) -> PtyResources {
     let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
     let pty_system = native_pty_system();
     let pty_pair = pty_system
