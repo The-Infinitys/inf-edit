@@ -9,12 +9,19 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub fn handle_command_palette_events(key: KeyEvent, app: &mut App) -> Result<AppEvent> {
-    if key.modifiers == KeyModifiers::CONTROL && (key.code == KeyCode::Char('q') || key.code == KeyCode::Char('c')) {
+    if key.modifiers == KeyModifiers::CONTROL
+        && (key.code == KeyCode::Char('q') || key.code == KeyCode::Char('c'))
+    {
         return Ok(AppEvent::Quit);
     }
-    if key.code == KeyCode::Esc || (key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('p')) {
+    if key.code == KeyCode::Esc
+        || (key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('p'))
+    {
         app.show_command_palette = false;
-        send_notification("Command palette closed.".to_string(), NotificationType::Info);
+        send_notification(
+            "Command palette closed.".to_string(),
+            NotificationType::Info,
+        );
         return Ok(AppEvent::Continue);
     }
 
@@ -34,11 +41,16 @@ pub fn handle_command_palette_events(key: KeyEvent, app: &mut App) -> Result<App
                 let msg = format!("Failed to save reset config: {}", e);
                 send_notification(msg, NotificationType::Error);
             } else {
-                send_notification("Settings reset to default.".to_string(), NotificationType::Info);
+                send_notification(
+                    "Settings reset to default.".to_string(),
+                    NotificationType::Info,
+                );
             }
             app.show_command_palette = false;
         }
-        crate::components::top_bar::command_palette::CommandPaletteEvent::SetThemePreset(preset) => {
+        crate::components::top_bar::command_palette::CommandPaletteEvent::SetThemePreset(
+            preset,
+        ) => {
             app.config.theme.preset = preset;
             app.theme = Theme::from_config(&app.config.theme);
             if let Err(e) = app.config.save() {

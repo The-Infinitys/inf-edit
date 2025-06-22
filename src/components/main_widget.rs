@@ -34,7 +34,9 @@ impl MainWidget {
             .select(app.active_main_tab)
             .style(Style::default().fg(app.theme.text_fg))
             .highlight_style(
-                Style::default().fg(app.theme.highlight_fg).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(app.theme.highlight_fg)
+                    .add_modifier(Modifier::BOLD),
             );
         f.render_widget(tabs, chunks[0]);
 
@@ -42,7 +44,10 @@ impl MainWidget {
         let active_tab_idx = app.active_main_tab;
         if active_tab_idx >= app.main_tabs.len() {
             // Render a placeholder if no tabs are available
-            f.render_widget(Block::default().borders(Borders::ALL).title("Editor"), content_area);
+            f.render_widget(
+                Block::default().borders(Borders::ALL).title("Editor"),
+                content_area,
+            );
             return;
         }
 

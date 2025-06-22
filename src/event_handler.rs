@@ -60,7 +60,10 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
 
         if app.terminals.len() < initial_term_len {
             send_notification(
-                format!("{} terminal session(s) ended.", initial_term_len - app.terminals.len()),
+                format!(
+                    "{} terminal session(s) ended.",
+                    initial_term_len - app.terminals.len()
+                ),
                 NotificationType::Info,
             );
         }

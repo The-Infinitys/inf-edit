@@ -91,16 +91,21 @@ impl Theme {
             _ => {
                 let default_theme = settings::Theme::default();
                 Self {
-                    primary_bg: parse_color(&config_theme.primary_bg)
-                        .unwrap_or_else(|_| parse_color(&default_theme.primary_bg).unwrap_or(Color::Black)),
-                    secondary_bg: parse_color(&config_theme.secondary_bg)
-                        .unwrap_or_else(|_| parse_color(&default_theme.secondary_bg).unwrap_or(Color::DarkGray)),
-                    text_fg: parse_color(&config_theme.text_fg)
-                        .unwrap_or_else(|_| parse_color(&default_theme.text_fg).unwrap_or(Color::White)),
-                    highlight_fg: parse_color(&config_theme.highlight_fg)
-                        .unwrap_or_else(|_| parse_color(&default_theme.highlight_fg).unwrap_or(Color::Yellow)),
-                    highlight_bg: parse_color(&config_theme.highlight_bg)
-                        .unwrap_or_else(|_| parse_color(&default_theme.highlight_bg).unwrap_or(Color::Blue)),
+                    primary_bg: parse_color(&config_theme.primary_bg).unwrap_or_else(|_| {
+                        parse_color(&default_theme.primary_bg).unwrap_or(Color::Black)
+                    }),
+                    secondary_bg: parse_color(&config_theme.secondary_bg).unwrap_or_else(|_| {
+                        parse_color(&default_theme.secondary_bg).unwrap_or(Color::DarkGray)
+                    }),
+                    text_fg: parse_color(&config_theme.text_fg).unwrap_or_else(|_| {
+                        parse_color(&default_theme.text_fg).unwrap_or(Color::White)
+                    }),
+                    highlight_fg: parse_color(&config_theme.highlight_fg).unwrap_or_else(|_| {
+                        parse_color(&default_theme.highlight_fg).unwrap_or(Color::Yellow)
+                    }),
+                    highlight_bg: parse_color(&config_theme.highlight_bg).unwrap_or_else(|_| {
+                        parse_color(&default_theme.highlight_bg).unwrap_or(Color::Blue)
+                    }),
                 }
             }
         }

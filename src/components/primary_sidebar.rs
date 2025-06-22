@@ -54,8 +54,11 @@ impl PrimarySidebar {
             })
             .collect();
 
-        let tabs_list = List::new(items)
-            .block(Block::default().borders(Borders::RIGHT).bg(app.theme.secondary_bg));
+        let tabs_list = List::new(items).block(
+            Block::default()
+                .borders(Borders::RIGHT)
+                .bg(app.theme.secondary_bg),
+        );
         f.render_widget(tabs_list, chunks[0]);
 
         // Render Content

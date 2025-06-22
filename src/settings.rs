@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use toml;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use toml;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
@@ -58,7 +58,10 @@ impl Default for Keybindings {
         global.insert("Alt-L".to_string(), "next_tab".to_string());
         global.insert("Alt-J".to_string(), "increase_size".to_string());
         global.insert("Alt-K".to_string(), "decrease_size".to_string());
-        global.insert("Ctrl-Alt-B".to_string(), "toggle_secondary_sidebar".to_string());
+        global.insert(
+            "Ctrl-Alt-B".to_string(),
+            "toggle_secondary_sidebar".to_string(),
+        );
         Self { global }
     }
 }

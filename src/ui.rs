@@ -1,12 +1,12 @@
 use crate::{
     app::{App, PanelHeight, SidebarWidth},
+    components::notification,
     components::{
         bottom_bar::BottomBar, main_widget::MainWidget, panel::Panel,
         primary_sidebar::PrimarySidebar, secondary_sidebar::SecondarySidebar, top_bar::TopBar,
     },
-    components::notification,
 };
-use ratatui::{prelude::*, widgets::Widget};
+use ratatui::prelude::*;
 
 pub fn draw(f: &mut Frame, app: &mut App) {
     let main_chunks = Layout::default()
@@ -23,10 +23,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     f.render_widget(top_bar.get_title_widget(app), main_chunks[0]);
 
     let bottom_bar = BottomBar::new();
-    f.render_widget(
-        bottom_bar.get_status_widget(app),
-        main_chunks[2],
-    );
+    f.render_widget(bottom_bar.get_status_widget(app), main_chunks[2]);
 
     // Main Content Area
     let sidebar_width = if app.show_primary_sidebar {

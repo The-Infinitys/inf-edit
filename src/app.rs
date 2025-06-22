@@ -105,23 +105,30 @@ impl App {
     }
 
     pub fn add_editor_tab(&mut self, editor: Editor, title: String) {
-        self.main_tabs
-            .push(Tab { title, content: MainWidgetContent::Editor(editor) });
+        self.main_tabs.push(Tab {
+            title,
+            content: MainWidgetContent::Editor(editor),
+        });
         self.active_main_tab = self.main_tabs.len() - 1;
         self.active_target = ActiveTarget::Editor;
     }
 
     pub fn add_terminal_tab(&mut self, term: Term, title: String) {
-        self.terminals.push(Tab { title, content: term });
+        self.terminals.push(Tab {
+            title,
+            content: term,
+        });
         self.active_terminal_tab = self.terminals.len() - 1;
         self.active_target = ActiveTarget::Panel;
         self.show_panel = true;
     }
 
     pub fn add_settings_tab(&mut self) {
-        if self.main_tabs.iter().any(|tab| {
-            matches!(tab.content, MainWidgetContent::SettingsEditor(_))
-        }) {
+        if self
+            .main_tabs
+            .iter()
+            .any(|tab| matches!(tab.content, MainWidgetContent::SettingsEditor(_)))
+        {
             return;
         }
         let settings_editor = SettingsEditor::new();

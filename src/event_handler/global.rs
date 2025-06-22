@@ -33,7 +33,9 @@ pub fn handle_global_keys(key: KeyEvent, app: &mut App) -> Result<Option<AppEven
                         .primary_sidebar_components
                         .get(app.active_primary_sidebar_tab)
                         .and_then(|tab| match &tab.content {
-                            PrimarySidebarComponent::FileView(fv) => Some(fv.current_path().clone()),
+                            PrimarySidebarComponent::FileView(fv) => {
+                                Some(fv.current_path().clone())
+                            }
                             _ => None,
                         })
                         .or_else(|| env::current_dir().ok());
@@ -156,11 +158,12 @@ pub fn handle_global_keys(key: KeyEvent, app: &mut App) -> Result<Option<AppEven
                         app.active_main_tab = (app.active_main_tab + 1) % app.main_tabs.len();
                     }
                     ActiveTarget::Panel if !app.terminals.is_empty() => {
-                        app.active_terminal_tab = (app.active_terminal_tab + 1) % app.terminals.len();
+                        app.active_terminal_tab =
+                            (app.active_terminal_tab + 1) % app.terminals.len();
                     }
                     ActiveTarget::PrimarySideBar if !app.primary_sidebar_components.is_empty() => {
-                        app.active_primary_sidebar_tab =
-                            (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len()
+                        app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1)
+                            % app.primary_sidebar_components.len()
                     }
                     _ => {}
                 },

@@ -18,7 +18,6 @@ impl SecondarySidebar {
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect, app: &mut App) {
-        app.secondary_sidebar_component
-            .render(f, area, &app.theme);
+        app.secondary_sidebar_component.render(f, area, &app.theme);
     }
 }

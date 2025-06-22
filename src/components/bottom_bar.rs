@@ -22,7 +22,9 @@ impl BottomBar {
         status_parts.push(format!("Active: {:?}", app.active_target));
 
         let size_state_str = match app.active_target {
-            crate::ActiveTarget::PrimarySideBar => format!(" | Size: {:?}", app.sidebar_width_state),
+            crate::ActiveTarget::PrimarySideBar => {
+                format!(" | Size: {:?}", app.sidebar_width_state)
+            }
             crate::ActiveTarget::Panel => format!(" | Size: {:?}", app.panel_height_state),
             _ => "".to_string(),
         };
@@ -30,7 +32,11 @@ impl BottomBar {
 
         let status_text = status_parts.join("");
         Paragraph::new(status_text)
-            .style(Style::default().bg(app.theme.secondary_bg).fg(app.theme.text_fg))
+            .style(
+                Style::default()
+                    .bg(app.theme.secondary_bg)
+                    .fg(app.theme.text_fg),
+            )
             .alignment(Alignment::Left)
     }
 }

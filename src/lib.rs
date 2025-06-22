@@ -1,6 +1,4 @@
-use components::{
-    main_widget::{editor::Editor, settings_editor::SettingsEditor},
-};
+use components::main_widget::{editor::Editor, settings_editor::SettingsEditor};
 
 pub mod app;
 pub mod components;

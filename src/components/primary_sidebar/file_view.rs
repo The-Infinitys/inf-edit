@@ -1,12 +1,12 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    prelude::*,
-    Frame,
     layout::Rect,
+    prelude::*,
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::ListState,
     widgets::{Block, Borders, List, ListItem},
+    Frame,
 };
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -147,7 +147,11 @@ impl FileView {
                 let icon = if item.is_parent_link {
                     "📁 " // Icon for "[..]"
                 } else if item.is_dir {
-                    if item.is_expanded { "▼ " } else { "▶ " }
+                    if item.is_expanded {
+                        "▼ "
+                    } else {
+                        "▶ "
+                    }
                 } else {
                     "📄 " // File icon
                 };
@@ -157,7 +161,8 @@ impl FileView {
                     ""
                 };
                 let display_name = format!("{}{}{}{}", indent, icon, item.name, name_suffix);
-                ListItem::new(Line::from(Span::raw(display_name))).style(Style::default().fg(theme.text_fg))
+                ListItem::new(Line::from(Span::raw(display_name)))
+                    .style(Style::default().fg(theme.text_fg))
             })
             .collect();
 
@@ -165,18 +170,19 @@ impl FileView {
             .title(format!(" File View: {} ", self.current_root.display()))
             .borders(Borders::ALL)
             .bg(theme.primary_bg)
-            .border_style(
-                if active {
-                    Style::default().fg(theme.highlight_fg)
-                } else {
-                    Style::default().fg(theme.text_fg)
-                }
-            );
+            .border_style(if active {
+                Style::default().fg(theme.highlight_fg)
+            } else {
+                Style::default().fg(theme.text_fg)
+            });
 
         let list = List::new(items)
             .block(block)
             .highlight_style(
-                Style::default().bg(theme.highlight_bg).fg(theme.text_fg).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .bg(theme.highlight_bg)
+                    .fg(theme.text_fg)
+                    .add_modifier(Modifier::BOLD),
             )
             .highlight_symbol("> ");
 
@@ -185,7 +191,10 @@ impl FileView {
 
     pub fn next(&mut self) {
         if !self.display_items.is_empty() {
-            let i = self.list_state.selected().map_or(0, |i| (i + 1) % self.display_items.len());
+            let i = self
+                .list_state
+                .selected()
+                .map_or(0, |i| (i + 1) % self.display_items.len());
             self.list_state.select(Some(i));
         }
     }
@@ -225,26 +234,26 @@ impl FileView {
     pub fn back(&mut self) {
         if let Some(selected_index) = self.list_state.selected() {
             if let Some(item) = self.display_items.get(selected_index).cloned() {
-            if item.is_dir && item.is_expanded && !item.is_parent_link {
-                self.expanded_state.remove(&item.path);
-                self.refresh_items();
-            } else if item.depth > 0 {
-                // Try to select parent in the list
-                let mut parent_idx = selected_index;
-                while parent_idx > 0 {
-                    parent_idx -= 1;
-                    if let Some(parent_item) = self.display_items.get(parent_idx) {
-                        if parent_item.depth < item.depth {
-                            self.list_state.select(Some(parent_idx));
-                            return;
+                if item.is_dir && item.is_expanded && !item.is_parent_link {
+                    self.expanded_state.remove(&item.path);
+                    self.refresh_items();
+                } else if item.depth > 0 {
+                    // Try to select parent in the list
+                    let mut parent_idx = selected_index;
+                    while parent_idx > 0 {
+                        parent_idx -= 1;
+                        if let Some(parent_item) = self.display_items.get(parent_idx) {
+                            if parent_item.depth < item.depth {
+                                self.list_state.select(Some(parent_idx));
+                                return;
+                            }
                         }
                     }
+                    // If no direct parent found above, or at depth 0, try to go to parent directory
+                    self.go_to_parent_directory();
+                } else {
+                    self.go_to_parent_directory();
                 }
-                // If no direct parent found above, or at depth 0, try to go to parent directory
-                self.go_to_parent_directory();
-            } else {
-                self.go_to_parent_directory();
-            }
             }
         } else {
             self.go_to_parent_directory();
@@ -260,7 +269,7 @@ impl FileView {
             ));
             self.current_root = parent.to_path_buf();
             self.list_state.select(Some(0)); // Or try to find the old current_root name
-            // self.expanded_state.clear(); // Optionally clear or manage intelligently
+                                             // self.expanded_state.clear(); // Optionally clear or manage intelligently
             self.refresh_items();
         } else if let Some((prev_root, prev_selected, prev_expanded)) = self.path_history.pop() {
             // Fallback to history if current_root has no parent but history exists
@@ -301,7 +310,8 @@ impl FileView {
                 self.enter();
                 true
             }
-            KeyCode::Char('h') => { // ← バックスペースは除外
+            KeyCode::Char('h') => {
+                // ← バックスペースは除外
                 self.back();
                 true
             }

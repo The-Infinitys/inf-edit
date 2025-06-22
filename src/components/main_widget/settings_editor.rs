@@ -98,9 +98,10 @@ impl SettingsEditor {
 
         let list = List::new(items)
             .block(
-                Block::default().borders(Borders::ALL)
-                .title("Settings")
-                .bg(theme.primary_bg)
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Settings")
+                    .bg(theme.primary_bg),
             )
             .highlight_style(Style::default().bg(theme.highlight_bg).fg(theme.text_fg))
             .highlight_symbol(">> ");
@@ -200,8 +201,12 @@ impl SettingsEditor {
                                     .cloned()
                                     .unwrap_or_default(),
                                 EditableField::ThemePreset => app.config.theme.preset.clone(),
-                                EditableField::ThemePrimaryBg => app.config.theme.primary_bg.clone(),
-                                EditableField::ThemeSecondaryBg => app.config.theme.secondary_bg.clone(),
+                                EditableField::ThemePrimaryBg => {
+                                    app.config.theme.primary_bg.clone()
+                                }
+                                EditableField::ThemeSecondaryBg => {
+                                    app.config.theme.secondary_bg.clone()
+                                }
                                 EditableField::ThemeTextFg => app.config.theme.text_fg.clone(),
                                 EditableField::ThemeHighlightFg => {
                                     app.config.theme.highlight_fg.clone()

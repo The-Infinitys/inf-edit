@@ -3,7 +3,7 @@ use super::git::GitWidget;
 use super::search::SearchWidget;
 use crate::theme::Theme;
 use crossterm::event::KeyEvent;
-use ratatui::{Frame, layout::Rect};
+use ratatui::{layout::Rect, Frame};
 /// Enum to hold all possible components for the primary sidebar.
 pub enum PrimarySidebarComponent {
     FileView(FileView),

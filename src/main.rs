@@ -2,15 +2,14 @@ use anyhow::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 // Updated import path
+use inf_edit::app::App;
 use inf_edit::event_handler;
 use inf_edit::ui;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
-use inf_edit::app::App;
-use inf_edit::ActiveTarget;
 
 fn main() -> Result<()> {
     // Changed to anyhow::Result

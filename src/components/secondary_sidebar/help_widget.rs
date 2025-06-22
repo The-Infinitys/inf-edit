@@ -1,7 +1,7 @@
 use crate::theme::Theme;
 use ratatui::{
-    prelude::*,
     layout::Rect,
+    prelude::*,
     style::Style,
     widgets::{Block, Borders, List, ListItem},
 };
@@ -29,10 +29,14 @@ impl HelpWidget {
             ListItem::new("Ctrl+Alt-B: Toggle Help"), // Updated keybinding string
         ];
 
-        let help_list =
-            List::new(help_items)
-                .style(Style::default().fg(theme.text_fg))
-                .block(Block::default().title("Help").borders(Borders::ALL).bg(theme.primary_bg));
+        let help_list = List::new(help_items)
+            .style(Style::default().fg(theme.text_fg))
+            .block(
+                Block::default()
+                    .title("Help")
+                    .borders(Borders::ALL)
+                    .bg(theme.primary_bg),
+            );
 
         f.render_widget(help_list, app_area);
     }

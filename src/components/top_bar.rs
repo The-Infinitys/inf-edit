@@ -22,7 +22,11 @@ impl TopBar {
 
     pub fn get_title_widget<'a>(&self, app: &'a App) -> impl Widget + 'a {
         Paragraph::new("inf-edit")
-            .style(Style::default().bg(app.theme.secondary_bg).fg(app.theme.text_fg))
+            .style(
+                Style::default()
+                    .bg(app.theme.secondary_bg)
+                    .fg(app.theme.text_fg),
+            )
             .alignment(Alignment::Center)
     }
 }

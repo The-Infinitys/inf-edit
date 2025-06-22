@@ -48,10 +48,22 @@ impl Default for CommandPalette {
 impl CommandPalette {
     pub fn new() -> Self {
         let static_commands = vec![
-            Command { name: "Open Settings".to_string(), action: CommandAction::OpenSettings },
-            Command { name: "Reset Settings".to_string(), action: CommandAction::ResetSettings },
-            Command { name: "Set Theme: Gruvbox".to_string(), action: CommandAction::SetThemePreset("gruvbox".to_string()) },
-            Command { name: "Set Theme: Catppuccin".to_string(), action: CommandAction::SetThemePreset("catppuccin".to_string()) },
+            Command {
+                name: "Open Settings".to_string(),
+                action: CommandAction::OpenSettings,
+            },
+            Command {
+                name: "Reset Settings".to_string(),
+                action: CommandAction::ResetSettings,
+            },
+            Command {
+                name: "Set Theme: Gruvbox".to_string(),
+                action: CommandAction::SetThemePreset("gruvbox".to_string()),
+            },
+            Command {
+                name: "Set Theme: Catppuccin".to_string(),
+                action: CommandAction::SetThemePreset("catppuccin".to_string()),
+            },
         ];
         Self {
             input: String::new(),
@@ -78,7 +90,10 @@ impl CommandPalette {
             }
             KeyCode::Up => {
                 if !self.filtered_items.is_empty() {
-                    self.selected_index = self.selected_index.checked_sub(1).unwrap_or(self.filtered_items.len() - 1);
+                    self.selected_index = self
+                        .selected_index
+                        .checked_sub(1)
+                        .unwrap_or(self.filtered_items.len() - 1);
                 }
             }
             KeyCode::Enter => {
@@ -115,7 +130,8 @@ impl CommandPalette {
             if query.is_empty() {
                 self.filtered_items = self.static_commands.clone();
             } else {
-                self.filtered_items = self.static_commands
+                self.filtered_items = self
+                    .static_commands
                     .iter()
                     .filter(|cmd| cmd.name.to_lowercase().contains(query))
                     .cloned()
@@ -177,19 +193,35 @@ impl CommandPalette {
         };
         f.render_widget(Clear, popup_area);
 
-        let chunks = Layout::default().direction(Direction::Vertical).constraints([Constraint::Length(3), Constraint::Min(0)]).split(popup_area);
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(3), Constraint::Min(0)])
+            .split(popup_area);
 
-        let input_paragraph = Paragraph::new(self.input.as_str()).block(Block::default().borders(Borders::ALL).title("Command Palette ('>' for commands)").border_style(Style::default().fg(app.theme.highlight_fg)));
+        let input_paragraph = Paragraph::new(self.input.as_str()).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Command Palette ('>' for commands)")
+                .border_style(Style::default().fg(app.theme.highlight_fg)),
+        );
         f.render_widget(input_paragraph, chunks[0]);
         f.set_cursor_position((chunks[0].x + self.input.len() as u16 + 1, chunks[0].y + 1));
 
-        let items: Vec<ListItem> = self.filtered_items.iter().map(|cmd| ListItem::new(cmd.name.clone())).collect();
+        let items: Vec<ListItem> = self
+            .filtered_items
+            .iter()
+            .map(|cmd| ListItem::new(cmd.name.clone()))
+            .collect();
         let mut list_state = ListState::default();
         list_state.select(Some(self.selected_index));
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Results"))
-            .highlight_style(Style::default().bg(app.theme.highlight_bg).fg(app.theme.text_fg))
+            .highlight_style(
+                Style::default()
+                    .bg(app.theme.highlight_bg)
+                    .fg(app.theme.text_fg),
+            )
             .highlight_symbol(">> ");
 
         f.render_stateful_widget(list, chunks[1], &mut list_state);

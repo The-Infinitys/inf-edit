@@ -47,7 +47,11 @@ impl Panel {
             list_state.select(Some(app.active_terminal_tab));
 
             let tabs_list = List::new(tab_titles)
-                .block(Block::default().borders(Borders::LEFT).bg(app.theme.secondary_bg))
+                .block(
+                    Block::default()
+                        .borders(Borders::LEFT)
+                        .bg(app.theme.secondary_bg),
+                )
                 .highlight_style(
                     Style::default()
                         .bg(app.theme.highlight_bg)

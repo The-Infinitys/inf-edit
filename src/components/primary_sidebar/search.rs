@@ -83,11 +83,12 @@ impl SearchWidget {
             .search_results
             .iter()
             .map(|r| {
-                let path_display = if let Ok(rel_path) = r.path.strip_prefix(env::current_dir().unwrap()) {
-                    rel_path.to_string_lossy()
-                } else {
-                    r.path.to_string_lossy()
-                };
+                let path_display =
+                    if let Ok(rel_path) = r.path.strip_prefix(env::current_dir().unwrap()) {
+                        rel_path.to_string_lossy()
+                    } else {
+                        r.path.to_string_lossy()
+                    };
                 let content = format!("{}:{}: {}", path_display, r.line_number, r.line_content);
                 ListItem::new(content)
             })
@@ -168,7 +169,10 @@ impl SearchWidget {
                 true
             }
             KeyCode::Up => {
-                let i = self.results_state.selected().map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+                let i =
+                    self.results_state
+                        .selected()
+                        .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 self.results_state.select(Some(i));
                 true
             }
@@ -186,9 +190,15 @@ impl SearchWidget {
         let search_term = self.search_input.clone();
         let root = env::current_dir().unwrap_or_else(|_| "/".into());
 
-        for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()) {
+        for entry in WalkDir::new(root)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+        {
             let path = entry.path();
-            if path.to_string_lossy().contains(".git") { continue; }
+            if path.to_string_lossy().contains(".git") {
+                continue;
+            }
 
             if let Ok(content) = fs::read_to_string(path) {
                 for (i, line) in content.lines().enumerate() {
@@ -208,7 +218,9 @@ impl SearchWidget {
     }
 
     fn perform_replace_all(&mut self) {
-        if self.search_input.is_empty() || self.search_results.is_empty() { return; }
+        if self.search_input.is_empty() || self.search_results.is_empty() {
+            return;
+        }
 
         let mut file_changes: HashMap<PathBuf, String> = HashMap::new();
         for result in &self.search_results {
@@ -231,7 +243,8 @@ impl SearchWidget {
     }
 
     fn get_border_style(&self, is_active: bool, input: &ActiveInput, theme: &Theme) -> Style {
-        if is_active && std::mem::discriminant(&self.active_input) == std::mem::discriminant(input) {
+        if is_active && std::mem::discriminant(&self.active_input) == std::mem::discriminant(input)
+        {
             Style::default().fg(theme.highlight_fg)
         } else {
             Style::default().fg(theme.text_fg)

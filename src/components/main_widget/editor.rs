@@ -1,5 +1,5 @@
 use crate::event_handler::PtyInput;
-use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
+use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::env;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -84,7 +84,7 @@ impl Editor {
         // The area for the terminal content is inside the block's borders.
         let inner_area = block.inner(area);
         let rows = inner_area.height.max(1); // Ensure at least 1 row
-        let cols = inner_area.width.max(1);   // Ensure at least 1 col
+        let cols = inner_area.width.max(1); // Ensure at least 1 col
 
         {
             let mut parser = self.parser.lock().unwrap();

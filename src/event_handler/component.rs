@@ -25,14 +25,21 @@ pub fn handle_component_keys(key: KeyEvent, app: &mut App) -> Result<()> {
                         MainWidgetContent::Editor(Editor::new()),
                     );
 
-                    if let MainWidgetContent::SettingsEditor(mut settings_editor) = content_placeholder {
+                    if let MainWidgetContent::SettingsEditor(mut settings_editor) =
+                        content_placeholder
+                    {
                         settings_editor.handle_key(key, app);
-                        app.main_tabs[active_tab_idx].content = MainWidgetContent::SettingsEditor(settings_editor);
+                        app.main_tabs[active_tab_idx].content =
+                            MainWidgetContent::SettingsEditor(settings_editor);
                     }
-                } else if let Some(editor) = app.main_tabs.get_mut(active_tab_idx).and_then(|t| match &mut t.content {
-                    MainWidgetContent::Editor(e) => Some(e),
-                    _ => None,
-                }) {
+                } else if let Some(editor) =
+                    app.main_tabs
+                        .get_mut(active_tab_idx)
+                        .and_then(|t| match &mut t.content {
+                            MainWidgetContent::Editor(e) => Some(e),
+                            _ => None,
+                        })
+                {
                     send_key_to_terminal(editor, key);
                 }
             }
@@ -47,7 +54,10 @@ pub fn handle_component_keys(key: KeyEvent, app: &mut App) -> Result<()> {
             // without holding a mutable reference to the sidebar component.
             let mut file_to_open = None;
             if key.code == KeyCode::Enter {
-                if let Some(tab) = app.primary_sidebar_components.get(app.active_primary_sidebar_tab) {
+                if let Some(tab) = app
+                    .primary_sidebar_components
+                    .get(app.active_primary_sidebar_tab)
+                {
                     if let PrimarySidebarComponent::FileView(f_view) = &tab.content {
                         file_to_open = f_view.selected_file();
                     }
@@ -62,7 +72,10 @@ pub fn handle_component_keys(key: KeyEvent, app: &mut App) -> Result<()> {
                 app.add_editor_tab(editor, title);
             } else {
                 // Otherwise, pass the key event to the active sidebar component.
-                if let Some(tab) = app.primary_sidebar_components.get_mut(app.active_primary_sidebar_tab) {
+                if let Some(tab) = app
+                    .primary_sidebar_components
+                    .get_mut(app.active_primary_sidebar_tab)
+                {
                     tab.content.handle_key(key);
                 }
             }
