@@ -33,12 +33,10 @@ impl WelcomeWidget {
             .split(parent_layout[0])[0];
 
         let logo_text: Vec<Line> = LOGO.iter().map(|&s| Line::from(s).centered()).collect();
-        let keybinds_text = vec![
-            ["Ctrl-P", "Show Command Pallete"],
+        let keybinds_text = [["Ctrl-P", "Show Command Pallete"],
             ["Ctrl-B", "Toggle File Explorer"],
             ["Ctrl-N", "Open Active Tab"],
-            ["Ctrl-W", "Close Active Tab"],
-        ];
+            ["Ctrl-W", "Close Active Tab"]];
         let max_keybinds_text_length = 30;
         let keybinds_text: Vec<Line<'_>> = keybinds_text
             .iter()

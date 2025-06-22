@@ -101,7 +101,7 @@ impl App {
 
     fn maybe_replace_welcome_tab(&mut self) {
         if self.main_tabs.len() == 1 {
-            if let Some(tab) = self.main_tabs.get(0) {
+            if let Some(tab) = self.main_tabs.first() {
                 if matches!(tab.content, MainWidgetContent::Welcome(_)) {
                     self.main_tabs.remove(0);
                     self.active_main_tab = 0;
