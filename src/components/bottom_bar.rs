@@ -6,6 +6,12 @@ use ratatui::{
 
 pub struct BottomBar {}
 
+impl Default for BottomBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BottomBar {
     pub fn new() -> Self {
         Self {}

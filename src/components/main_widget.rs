@@ -10,6 +10,12 @@ use crate::{app::App, MainWidgetContent};
 
 pub struct MainWidget;
 
+impl Default for MainWidget {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MainWidget {
     pub fn new() -> Self {
         Self
@@ -61,15 +67,13 @@ impl MainWidget {
             }
             // Put it back.
             app.main_tabs[active_tab_idx].content = content;
-        } else {
-            if let Some(tab) = app.main_tabs.get_mut(active_tab_idx) {
-                if let MainWidgetContent::Editor(editor) = &mut tab.content {
-                    let content_block = Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(border_style)
-                        .bg(app.theme.primary_bg);
-                    editor.render_with_block(f, content_area, content_block);
-                }
+        } else if let Some(tab) = app.main_tabs.get_mut(active_tab_idx) {
+            if let MainWidgetContent::Editor(editor) = &mut tab.content {
+                let content_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(border_style)
+                    .bg(app.theme.primary_bg);
+                editor.render_with_block(f, content_area, content_block);
             }
         }
     }

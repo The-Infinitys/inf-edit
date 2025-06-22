@@ -3,11 +3,17 @@ pub mod command_palette;
 use crate::app::App;
 use ratatui::{
     prelude::*,
-    style::{Modifier, Style},
+    style::Style,
     widgets::{Paragraph, Widget},
 };
 
 pub struct TopBar {}
+
+impl Default for TopBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TopBar {
     pub fn new() -> Self {

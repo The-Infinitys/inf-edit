@@ -39,6 +39,12 @@ pub struct CommandPalette {
     selected_index: usize,
 }
 
+impl Default for CommandPalette {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommandPalette {
     pub fn new() -> Self {
         let static_commands = vec![

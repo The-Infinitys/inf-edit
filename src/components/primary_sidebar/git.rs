@@ -274,7 +274,7 @@ impl GitWidget {
     fn unstage_file(&mut self, path: &str) {
         if let Ok(repo) = Repository::open(".") {
             if let Ok(head) = repo.head().and_then(|h| h.peel_to_commit()) {
-                if let Err(e) = repo.reset_default(Some(head.as_object()), &[path]) {
+                if let Err(e) = repo.reset_default(Some(head.as_object()), [path]) {
                     send_notification(format!("Git Error: Failed to unstage {}: {}", path, e), NotificationType::Error);
                 }
                 self.refresh_status();

@@ -7,10 +7,16 @@ pub mod search;
 use crate::app::App;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem},
 };
 
 pub struct PrimarySidebar;
+
+impl Default for PrimarySidebar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PrimarySidebar {
     pub fn new() -> Self {

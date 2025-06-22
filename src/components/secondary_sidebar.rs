@@ -6,6 +6,12 @@ use ratatui::prelude::*;
 
 pub struct SecondarySidebar;
 
+impl Default for SecondarySidebar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SecondarySidebar {
     pub fn new() -> Self {
         Self

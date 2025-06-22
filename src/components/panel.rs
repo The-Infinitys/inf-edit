@@ -9,6 +9,12 @@ use crate::app::App;
 
 pub struct Panel;
 
+impl Default for Panel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Panel {
     pub fn new() -> Self {
         Self
