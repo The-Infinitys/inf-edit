@@ -1,5 +1,5 @@
 use crate::{
-    app::{App, PanelHeight, SidebarWidth},
+    app::App,
     components::notification,
     components::{
         bottom_bar::BottomBar, main_widget::MainWidget, panel::Panel,
@@ -27,9 +27,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Main Content Area
     let sidebar_width = if app.show_primary_sidebar {
-        match app.sidebar_width_state {
-            SidebarWidth::Default => Constraint::Percentage(20),
-            SidebarWidth::Half => Constraint::Percentage(50),
+        if app.active_target == crate::ActiveTarget::PrimarySideBar {
+            Constraint::Percentage(40) // Larger when active
+        } else {
+            Constraint::Percentage(20) // Default size
         }
     } else {
         Constraint::Length(0)
@@ -64,10 +65,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Main Widget and Panel
     let panel_height = if app.show_panel {
-        match app.panel_height_state {
-            PanelHeight::Default => Constraint::Percentage(30),
-            PanelHeight::Half => Constraint::Percentage(50),
-            PanelHeight::Maximized => Constraint::Percentage(100),
+        if app.active_target == crate::ActiveTarget::Panel {
+            Constraint::Percentage(60) // Larger when active
+        } else {
+            Constraint::Percentage(30) // Default size
         }
     } else {
         Constraint::Length(0)
@@ -86,7 +87,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Render Command Palette if active (must be before notifications)
     if app.show_command_palette {
-        app.command_palette.render(f, f.area(), app);
+        app.command_palette.render(f, f.area(), &app.theme);
     }
 
     // 他のすべてのUIの上に通知を描画

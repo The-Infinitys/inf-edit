@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{
     components::{
@@ -19,19 +19,6 @@ use crate::{
     ActiveTarget, MainWidgetContent,
 };
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum SidebarWidth {
-    Default,
-    Half,
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum PanelHeight {
-    Default,
-    Half,
-    Maximized,
-}
-
 pub struct Tab<T> {
     pub title: String,
     pub content: T,
@@ -45,6 +32,7 @@ pub struct App {
     pub show_secondary_sidebar: bool,
     pub show_panel: bool,
     pub show_command_palette: bool,
+    pub should_quit: bool,
     pub main_tabs: Vec<Tab<MainWidgetContent>>,
     pub active_main_tab: usize,
     pub terminals: Vec<Tab<Term>>,
@@ -53,8 +41,6 @@ pub struct App {
     pub active_primary_sidebar_tab: usize,
     pub secondary_sidebar_component: HelpWidget,
     pub command_palette: CommandPalette,
-    pub sidebar_width_state: SidebarWidth,
-    pub panel_height_state: PanelHeight,
 }
 
 impl App {
@@ -89,6 +75,7 @@ impl App {
             show_secondary_sidebar: false,
             show_panel: false,
             show_command_palette: false,
+            should_quit: false,
             active_main_tab: 0,
             main_tabs,
             active_terminal_tab: 0,
@@ -97,38 +84,51 @@ impl App {
             primary_sidebar_components,
             secondary_sidebar_component: HelpWidget::new(),
             command_palette: CommandPalette::new(),
-            sidebar_width_state: SidebarWidth::Default,
-            panel_height_state: PanelHeight::Default,
             config,
             theme,
         })
     }
 
+    pub fn get_active_editor_mut(&mut self) -> Option<&mut Editor> {
+        self.main_tabs
+            .get_mut(self.active_main_tab)
+            .and_then(|tab| match &mut tab.content {
+                MainWidgetContent::Editor(editor) => Some(editor),
+                _ => None,
+            })
+    }
+
     pub fn add_editor_tab(&mut self, editor: Editor, title: String) {
-        self.main_tabs.push(Tab {
-            title,
-            content: MainWidgetContent::Editor(editor),
-        });
+        self.main_tabs
+            .push(Tab { title, content: MainWidgetContent::Editor(editor) });
         self.active_main_tab = self.main_tabs.len() - 1;
         self.active_target = ActiveTarget::Editor;
     }
 
+    pub fn open_editor(&mut self, path: &Path) {
+        let mut editor = Editor::new();
+        let title = path.to_string_lossy().to_string();
+        editor.open_file(path.to_path_buf());
+        self.add_editor_tab(editor, title);
+    }
+
     pub fn add_terminal_tab(&mut self, term: Term, title: String) {
-        self.terminals.push(Tab {
-            title,
-            content: term,
-        });
+        self.terminals.push(Tab { title, content: term });
         self.active_terminal_tab = self.terminals.len() - 1;
         self.active_target = ActiveTarget::Panel;
         self.show_panel = true;
     }
 
+    pub fn open_new_terminal(&mut self) {
+        if let Ok(term) = Term::new(env::current_dir().ok()) {
+            self.add_terminal_tab(term, format!("Term {}", self.terminals.len() + 1));
+        }
+    }
+
     pub fn add_settings_tab(&mut self) {
-        if self
-            .main_tabs
-            .iter()
-            .any(|tab| matches!(tab.content, MainWidgetContent::SettingsEditor(_)))
-        {
+        if self.main_tabs.iter().any(|tab| {
+            matches!(tab.content, MainWidgetContent::SettingsEditor(_))
+        }) {
             return;
         }
         let settings_editor = SettingsEditor::new();
@@ -140,28 +140,38 @@ impl App {
         self.active_target = ActiveTarget::Editor;
     }
 
-    pub fn cycle_sidebar_width(&mut self, forward: bool) {
-        // With only two states, forward and backward are the same.
-        let _ = forward;
-        self.sidebar_width_state = match self.sidebar_width_state {
-            SidebarWidth::Default => SidebarWidth::Half,
-            SidebarWidth::Half => SidebarWidth::Default,
-        };
+    pub fn toggle_primary_sidebar(&mut self) {
+        if !self.show_primary_sidebar {
+            self.show_primary_sidebar = true;
+            self.active_target = ActiveTarget::PrimarySideBar;
+        } else if self.active_target == ActiveTarget::PrimarySideBar {
+            self.show_primary_sidebar = false;
+            self.active_target = ActiveTarget::Editor;
+        } else {
+            self.active_target = ActiveTarget::PrimarySideBar;
+        }
     }
 
-    pub fn cycle_panel_height(&mut self, forward: bool) {
-        if forward {
-            self.panel_height_state = match self.panel_height_state {
-                PanelHeight::Default => PanelHeight::Half,
-                PanelHeight::Half => PanelHeight::Maximized,
-                PanelHeight::Maximized => PanelHeight::Default,
-            };
+    pub fn toggle_panel(&mut self) {
+        if !self.show_panel {
+            if self.terminals.is_empty() {
+                self.open_new_terminal();
+            }
+            self.show_panel = true;
+            self.active_target = ActiveTarget::Panel;
+        } else if self.active_target == ActiveTarget::Panel {
+            self.show_panel = false;
+            self.active_target = ActiveTarget::Editor;
         } else {
-            self.panel_height_state = match self.panel_height_state {
-                PanelHeight::Default => PanelHeight::Maximized,
-                PanelHeight::Half => PanelHeight::Default,
-                PanelHeight::Maximized => PanelHeight::Half,
-            };
+            self.active_target = ActiveTarget::Panel;
+        }
+    }
+
+    pub fn execute_command_palette_action(&mut self) {
+        if let Some(action) = self.command_palette.get_selected_action() {
+            action(self);
+            self.show_command_palette = false;
+            self.command_palette.reset();
         }
     }
 }

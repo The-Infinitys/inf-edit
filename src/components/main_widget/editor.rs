@@ -1,5 +1,8 @@
-use crate::event_handler::PtyInput;
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use crate::{
+    components::notification::{send_notification, NotificationType},
+    event_handler::PtyInput,
+};
+use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use std::env;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -84,7 +87,7 @@ impl Editor {
         // The area for the terminal content is inside the block's borders.
         let inner_area = block.inner(area);
         let rows = inner_area.height.max(1); // Ensure at least 1 row
-        let cols = inner_area.width.max(1); // Ensure at least 1 col
+        let cols = inner_area.width.max(1);   // Ensure at least 1 col
 
         {
             let mut parser = self.parser.lock().unwrap();
@@ -161,6 +164,29 @@ impl Editor {
 
     pub fn is_dead(&self) -> bool {
         self.dead.load(Ordering::SeqCst)
+    }
+
+    /// Sends the save command to the underlying editor process.
+    /// NOTE: This is brittle as it assumes a vi-like editor and that it's in normal mode.
+    /// A more robust implementation would require more complex state tracking or a different
+    /// approach to editing files (e.g., managing the buffer directly in `inf-edit`).
+    pub fn save(&mut self) -> std::io::Result<()> {
+        // Send Esc, then :w, then Enter.
+        let save_command = b"\x1b:w\r";
+        if let Ok(mut writer) = self.writer.lock() {
+            writer.write_all(save_command)?;
+            writer.flush()?;
+            send_notification(
+                "Save command sent to editor.".to_string(),
+                NotificationType::Info,
+            );
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Could not lock editor writer to save",
+            ))
+        }
     }
 }
 

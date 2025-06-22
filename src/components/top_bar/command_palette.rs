@@ -1,229 +1,301 @@
-use crate::app::App;
+use crate::{
+    app::App,
+    components::notification::{send_notification, NotificationType},
+};
+use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState},
 };
-use std::env;
-use std::path::PathBuf;
+use std::{borrow::Cow, path::Path, sync::Arc};
 use walkdir::WalkDir;
 
-#[derive(Debug, Clone)]
-pub struct Command {
-    pub name: String,
-    pub action: CommandAction,
+/// アプリケーションの状態を変更するためのアクションを定義します。
+/// `Arc`でラップすることで、複数のコマンドアイテムで共有可能になります。
+pub type Action = Arc<dyn Fn(&mut App) + Send + Sync>;
+
+/// コマンドパレットに表示されるアイテム。コマンドまたはファイルパスを表します。
+pub enum CommandItem {
+    Command { name: String, action: Action },
+    File { name: String, path: String },
 }
 
-#[derive(Debug, Clone)]
-pub enum CommandAction {
-    OpenFile(PathBuf),
-    SetThemePreset(String),
-    OpenSettings,
-    ResetSettings,
+impl CommandItem {
+    /// リストに表示するためのテキストを返します。
+    /// ファイルの場合は「ファイル名 <タブ> ディレクトリパス」の形式で表示します。
+    fn display_text(&self) -> Cow<str> {
+        match self {
+            CommandItem::Command { name, .. } => Cow::Borrowed(name),
+            CommandItem::File { name, path } => {
+                let p = Path::new(path);
+                let parent_dir = p.parent().unwrap_or_else(|| Path::new("")).to_string_lossy();
+                Cow::Owned(format!("{}: {}", name, parent_dir))
+            }
+        }
+    }
+
+    /// アイテムが表すファイルパスを返します（ファイルアイテムの場合のみ）。
+    fn file_path(&self) -> Option<&str> {
+        match self {
+            CommandItem::File { path, .. } => Some(path),
+            _ => None,
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
+/// パレットのモード。コマンド検索かファイル検索かを切り替えます。
+enum PaletteMode {
+    Command,
+    File,
+}
+
+/// Events that the command palette can emit to the main application.
 pub enum CommandPaletteEvent {
-    Exit,
-    OpenFile(PathBuf),
-    SetThemePreset(String),
-    OpenSettings,
-    ResetSettings,
+    Execute,
+    Close,
     None,
 }
 
 pub struct CommandPalette {
-    pub input: String,
-    static_commands: Vec<Command>,
-    filtered_items: Vec<Command>,
-    selected_index: usize,
-}
-
-impl Default for CommandPalette {
-    fn default() -> Self {
-        Self::new()
-    }
+    input: String,
+    commands: Vec<CommandItem>,
+    files: Vec<CommandItem>,
+    filtered_indices: Vec<usize>,
+    list_state: ListState,
+    mode: PaletteMode,
 }
 
 impl CommandPalette {
     pub fn new() -> Self {
-        let static_commands = vec![
-            Command {
-                name: "Open Settings".to_string(),
-                action: CommandAction::OpenSettings,
-            },
-            Command {
-                name: "Reset Settings".to_string(),
-                action: CommandAction::ResetSettings,
-            },
-            Command {
-                name: "Set Theme: Gruvbox".to_string(),
-                action: CommandAction::SetThemePreset("gruvbox".to_string()),
-            },
-            Command {
-                name: "Set Theme: Catppuccin".to_string(),
-                action: CommandAction::SetThemePreset("catppuccin".to_string()),
-            },
-        ];
-        Self {
+        let mut s = Self {
             input: String::new(),
-            filtered_items: static_commands.clone(),
-            static_commands,
-            selected_index: 0,
+            commands: Self::load_commands(),
+            files: Vec::new(),
+            filtered_indices: Vec::new(),
+            list_state: ListState::default(),
+            mode: PaletteMode::File, // デフォルトをファイル検索モードに変更
+        };
+        s.enter_file_mode(); // 初期状態でファイルリストを読み込み、フィルタリング
+        s
+    }
+
+    /// アプリケーションで利用可能な全コマンドを定義します。
+    fn load_commands() -> Vec<CommandItem> {
+        vec![
+            CommandItem::Command {
+                name: "File: Open...".to_string(),
+                action: Arc::new(|app| app.command_palette.enter_file_mode()),
+            },
+            CommandItem::Command {
+                name: "File: Save".to_string(),
+                action: Arc::new(|app| {
+                    if let Some(editor) = app.get_active_editor_mut() {
+                        // This requires you to implement the `save` method on your Editor struct.
+                        if let Err(e) = editor.save() {
+                             send_notification(format!("Error saving file: {}", e), NotificationType::Error);
+                        }
+                    }
+                }),
+            },
+            CommandItem::Command {
+                name: "View: Toggle Primary Sidebar".to_string(),
+                action: Arc::new(|app| app.toggle_primary_sidebar()),
+            },
+            CommandItem::Command {
+                name: "View: Toggle Panel".to_string(),
+                action: Arc::new(|app| app.toggle_panel()),
+            },
+            CommandItem::Command {
+                name: "Terminal: Open New".to_string(),
+                action: Arc::new(|app| app.open_new_terminal()),
+            },
+            CommandItem::Command {
+                name: "Application: Quit".to_string(),
+                action: Arc::new(|app| app.should_quit = true),
+            },
+        ]
+    }
+
+    /// ファイル検索モードに切り替え、ファイルリストを（必要なら）読み込みます。
+    pub fn enter_file_mode(&mut self) {
+        self.mode = PaletteMode::File;
+        self.input.clear();
+        if self.files.is_empty() {
+            self.files = WalkDir::new(".")
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_file())
+                .filter(|e| {
+                    let path_str = e.path().to_string_lossy();
+                    !path_str.contains(".git") && !path_str.contains("target")
+                })
+                .map(|entry| {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let path = entry.path().to_string_lossy().to_string();
+                    CommandItem::File { name, path }
+                })
+                .collect();
+        }
+        self.filter_items();
+    }
+
+    /// 入力に基づいてアイテムをフィルタリングします。
+    fn filter_items(&mut self) {
+        let source_items = match self.mode {
+            PaletteMode::Command => &self.commands,
+            PaletteMode::File => &self.files,
+        };
+        let input_lower = self.input.to_lowercase();
+
+        self.filtered_indices = source_items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| {
+                let text_to_search = match item {
+                    CommandItem::Command { name, .. } => name.as_str(),
+                    CommandItem::File { path, .. } => path.as_str(),
+                };
+                text_to_search.to_lowercase().contains(&input_lower)
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        if !self.filtered_indices.is_empty() {
+            self.list_state.select(Some(0));
+        } else {
+            self.list_state.select(None);
         }
     }
 
+    /// キー入力を処理します。
     pub fn handle_key(&mut self, key: KeyEvent) -> CommandPaletteEvent {
         match key.code {
+            KeyCode::Esc => return CommandPaletteEvent::Close,
+            KeyCode::Enter => return CommandPaletteEvent::Execute,
             KeyCode::Char(c) => {
                 self.input.push(c);
-                self.update_filtered_items();
+                // If the input is just ">", switch to command mode.
+                if self.input == ">" {
+                    self.mode = PaletteMode::Command;
+                }
+                self.filter_items();
             }
             KeyCode::Backspace => {
+                // If input is empty, backspace closes the palette.
+                if self.input.is_empty() {
+                    return CommandPaletteEvent::Close;
+                }
                 self.input.pop();
-                self.update_filtered_items();
-            }
-            KeyCode::Down => {
-                if !self.filtered_items.is_empty() {
-                    self.selected_index = (self.selected_index + 1) % self.filtered_items.len();
+                // If the input becomes empty, switch back to file mode.
+                if self.input.is_empty() {
+                    self.mode = PaletteMode::File;
                 }
+                self.filter_items();
             }
-            KeyCode::Up => {
-                if !self.filtered_items.is_empty() {
-                    self.selected_index = self
-                        .selected_index
-                        .checked_sub(1)
-                        .unwrap_or(self.filtered_items.len() - 1);
-                }
-            }
-            KeyCode::Enter => {
-                // Clone the command to release the borrow on `self.filtered_items` immediately.
-                if let Some(cmd) = self.filtered_items.get(self.selected_index).cloned() {
-                    // Now that the borrow is released, we can safely modify the state.
-                    self.input.clear();
-                    self.filtered_items = self.static_commands.clone();
-                    self.selected_index = 0;
-
-                    // Use the owned `cmd` to create the event.
-                    return match cmd.action {
-                        CommandAction::OpenFile(p) => CommandPaletteEvent::OpenFile(p),
-                        CommandAction::SetThemePreset(p) => CommandPaletteEvent::SetThemePreset(p),
-                        CommandAction::OpenSettings => CommandPaletteEvent::OpenSettings,
-                        CommandAction::ResetSettings => CommandPaletteEvent::ResetSettings,
-                    };
-                }
-            }
-            KeyCode::Esc => {
-                self.input.clear();
-                self.filtered_items = self.static_commands.clone();
-                self.selected_index = 0;
-                return CommandPaletteEvent::Exit;
-            }
+            KeyCode::Down => self.select_next(),
+            KeyCode::Up => self.select_previous(),
             _ => {}
         }
         CommandPaletteEvent::None
     }
 
-    fn update_filtered_items(&mut self) {
-        if self.input.starts_with('>') {
-            let query = &self.input[1..].to_lowercase();
-            if query.is_empty() {
-                self.filtered_items = self.static_commands.clone();
-            } else {
-                self.filtered_items = self
-                    .static_commands
-                    .iter()
-                    .filter(|cmd| cmd.name.to_lowercase().contains(query))
-                    .cloned()
-                    .collect();
-            }
-        } else if !self.input.is_empty() {
-            self.filtered_items = self.find_files(&self.input);
-        } else {
-            self.filtered_items = self.static_commands.clone();
-        }
-        self.selected_index = 0;
-    }
-
-    fn find_files(&self, query: &str) -> Vec<Command> {
-        let mut results = Vec::new();
-        let current_dir = match env::current_dir() {
-            Ok(dir) => dir,
-            Err(_) => return results,
-        };
-
-        for entry in WalkDir::new(current_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| {
-                let path_str = e.path().to_string_lossy();
-                !path_str.contains("/.git/") && !path_str.contains("/target/")
-            })
-            .filter(|e| e.file_type().is_file())
-            .take(50)
-        {
-            let path = entry.path();
-            if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                if file_name.to_lowercase().contains(&query.to_lowercase()) {
-                    results.push(Command {
-                        name: path.to_string_lossy().to_string(),
-                        action: CommandAction::OpenFile(path.to_path_buf()),
-                    });
+    /// 選択されているアイテムのアクションを返します。
+    pub fn get_selected_action(&self) -> Option<Action> {
+        self.list_state.selected().and_then(|selected_idx| {
+            self.filtered_indices.get(selected_idx).and_then(|&item_idx| {
+                let item = match self.mode {
+                    PaletteMode::Command => &self.commands[item_idx],
+                    PaletteMode::File => &self.files[item_idx],
+                };
+                match item {
+                    CommandItem::Command { action, .. } => Some(action.clone()),
+                    CommandItem::File { path, .. } => {
+                        let path_clone = path.clone();
+                        Some(Arc::new(move |app| {
+                            app.open_editor(Path::new(&path_clone));
+                        }))
+                    }
                 }
-            }
-        }
-        results
+            })
+        })
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, app: &App) {
-        let popup_width = (area.width / 2).max(80);
-        let popup_area_base = Rect {
-            x: (area.width.saturating_sub(popup_width)) / 2,
-            y: 1,
-            width: popup_width,
-            height: area.height,
+    /// パレットの状態を初期状態（コマンドモード）にリセットします。
+    pub fn reset(&mut self) {
+        self.mode = PaletteMode::File; // Reset to file mode
+        self.input.clear();
+        self.filter_items();
+    }
+
+    fn select_next(&mut self) {
+        let len = self.filtered_indices.len();
+        if len == 0 { return; }
+        let i = self.list_state.selected().map_or(0, |i| (i + 1) % len);
+        self.list_state.select(Some(i));
+    }
+
+    fn select_previous(&mut self) {
+        let len = self.filtered_indices.len();
+        if len == 0 { return; }
+        let i = self.list_state.selected().map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
+        self.list_state.select(Some(i));
+    }
+
+    /// コマンドパレットを描画します。
+    pub fn render(&mut self, f: &mut Frame, area: Rect, theme: &Theme) {
+        let palette_height = 20.min(area.height.saturating_sub(5));
+        let area = centered_rect(60, palette_height, area);
+
+        f.render_widget(Clear, area); // 背景をクリア
+
+        let source_items = match self.mode {
+            PaletteMode::Command => &self.commands,
+            PaletteMode::File => &self.files,
         };
 
-        let list_height = self.filtered_items.len().min(15) as u16;
-        let popup_height = list_height + 3; // +3 for the input box with borders
-
-        let popup_area = Rect {
-            height: popup_height,
-            ..popup_area_base
-        };
-        f.render_widget(Clear, popup_area);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(0)])
-            .split(popup_area);
-
-        let input_paragraph = Paragraph::new(self.input.as_str()).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Command Palette ('>' for commands)")
-                .border_style(Style::default().fg(app.theme.highlight_fg)),
-        );
-        f.render_widget(input_paragraph, chunks[0]);
-        f.set_cursor_position((chunks[0].x + self.input.len() as u16 + 1, chunks[0].y + 1));
-
-        let items: Vec<ListItem> = self
-            .filtered_items
+        let list_items: Vec<ListItem> = self
+            .filtered_indices
             .iter()
-            .map(|cmd| ListItem::new(cmd.name.clone()))
+            .map(|&i| ListItem::new(source_items[i].display_text().into_owned()))
             .collect();
-        let mut list_state = ListState::default();
-        list_state.select(Some(self.selected_index));
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Results"))
-            .highlight_style(
-                Style::default()
-                    .bg(app.theme.highlight_bg)
-                    .fg(app.theme.text_fg),
+        let title = match self.mode {
+            PaletteMode::Command => "Command",
+            PaletteMode::File => "File",
+        };
+
+        let list = List::new(list_items)
+            .block(
+                Block::default()
+                    .title(format!(" {} Palette > {} ", title, self.input))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(theme.highlight_fg)),
             )
+            .highlight_style(Style::default().bg(theme.highlight_bg))
             .highlight_symbol(">> ");
 
-        f.render_stateful_widget(list, chunks[1], &mut list_state);
+        f.render_stateful_widget(list, area, &mut self.list_state);
     }
+}
+
+/// 中央に配置する矩形を計算するヘルパー関数
+fn centered_rect(percent_x: u16, height: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - 90) / 2),
+            Constraint::Length(height),
+            Constraint::Percentage((100 - 90) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
