@@ -44,7 +44,9 @@ impl SettingsEditor {
         Self::default()
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect, config: &Config, theme: &Theme) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, app: &mut App) {
+        let config = &app.config;
+        let theme = &app.theme;
         let mut items = Vec::new();
 
         items.push(ListItem::new(Line::from(Span::styled(

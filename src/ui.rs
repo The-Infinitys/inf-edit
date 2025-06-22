@@ -144,13 +144,12 @@ pub fn draw(
             let content_area = main_widget_chunks[1];
 
             let mut main_widget = MainWidget::new(
-                &mut app.main_tabs, // This will be fixed by changing MainWidget
                 app.active_main_tab,
                 app.active_target == ActiveTarget::Editor,
             );
 
-            main_widget.render_tabs(f, tabs_area);
-            main_widget.render_content(f, content_area, &app.config, &app.theme);
+            main_widget.render_tabs(f, tabs_area, app);
+            main_widget.render_content(f, content_area, app);
         }
 
         // Render the Panel
