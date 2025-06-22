@@ -1,5 +1,5 @@
 use crate::components::main_widget::{
-    editor::Editor, settings_editor::SettingsEditor, welcome_widget::WelcomeWidget,
+    editor::Editor, settings_editor::SettingsEditor, welcome_widget::WelcomeWidget, 
 };
 
 pub mod app;
@@ -22,3 +22,6 @@ pub enum MainWidgetContent {
     SettingsEditor(SettingsEditor),
     Welcome(WelcomeWidget),
 }
+
+pub use components::popup::Popup;
+pub use components::popup::PopupResult;

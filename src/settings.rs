@@ -47,7 +47,7 @@ impl Default for Config {
 impl Default for Keybindings {
     fn default() -> Self {
         let mut global = HashMap::new();
-        global.insert("Ctrl-Q".to_string(), "quit".to_string());
+        global.insert("Ctrl-Q".to_string(), "show_quit_popup".to_string());
         global.insert("Ctrl-B".to_string(), "toggle_primary_sidebar".to_string());
         global.insert("Ctrl-J".to_string(), "toggle_panel".to_string());
         global.insert("Ctrl-K".to_string(), "cycle_focus".to_string());

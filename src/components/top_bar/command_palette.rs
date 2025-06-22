@@ -74,6 +74,7 @@ pub struct CommandPalette {
     list_state: ListState,
     mode: PaletteMode,
     is_searching: bool,
+    file_view_changed: bool,
     file_receiver: Option<mpsc::Receiver<CommandItem>>,
 }
 
@@ -93,9 +94,11 @@ impl CommandPalette {
             list_state: ListState::default(),
             mode: PaletteMode::File, // デフォルトをファイル検索モードに変更
             is_searching: false,
+            file_view_changed: true, // Start dirty to trigger initial scan
             file_receiver: None,
         };
-        s.enter_file_mode(); // 初期状態でファイルリストを読み込み、フィルタリング
+        // Don't start search on creation, wait until palette is opened.
+        s.filter_items();
         s
     }
 
@@ -138,7 +141,7 @@ impl CommandPalette {
             },
             CommandItem::Command {
                 name: "Application: Quit".to_string(),
-                action: Arc::new(|app| app.should_quit = true),
+                action: Arc::new(|app| app.show_quit_popup()),
             },
         ]
     }
@@ -147,7 +150,9 @@ impl CommandPalette {
     pub fn enter_file_mode(&mut self) {
         self.mode = PaletteMode::File;
         self.input.clear();
-        if self.files.is_empty() && !self.is_searching {
+        // Only start a new search if the file view has changed, or if there are no files and no search is running.
+        if self.file_view_changed || (self.files.is_empty() && !self.is_searching) {
+            self.files.clear(); // Clear stale results
             let (tx, rx) = mpsc::channel();
             self.file_receiver = Some(rx);
             self.is_searching = true;
@@ -159,12 +164,14 @@ impl CommandPalette {
                     .filter(|e| e.file_type().is_file())
                 {
                     let path_str = entry.path().to_string_lossy();
+                    // A more robust ignore mechanism would be better (e.g., using .gitignore)
                     if path_str.contains(".git") || path_str.contains("target") {
                         continue;
                     }
                     let name = entry.file_name().to_string_lossy().to_string();
                     let path = path_str.to_string();
                     if tx.send(CommandItem::File { name, path }).is_err() {
+                        // Receiver has been dropped, so the palette was closed.
                         break; // Receiver has been dropped
                     }
                 }
@@ -268,6 +275,11 @@ impl CommandPalette {
         self.mode = PaletteMode::File; // Reset to file mode
         self.input.clear();
         self.filter_items();
+    }
+
+    /// Marks the file list as dirty, forcing a re-scan on the next opportunity.
+    pub fn set_file_view_changed(&mut self) {
+        self.file_view_changed = true;
     }
 
     /// Polls for asynchronously found files and updates the list.

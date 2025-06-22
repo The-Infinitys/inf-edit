@@ -33,32 +33,30 @@ impl WelcomeWidget {
             .split(parent_layout[0])[0];
 
         let logo_text: Vec<Line> = LOGO.iter().map(|&s| Line::from(s).centered()).collect();
-        let keybinds_text = [["Ctrl-P", "Show Command Pallete"],
-            ["Ctrl-B", "Toggle File Explorer"],
-            ["Ctrl-N", "Open Active Tab"],
-            ["Ctrl-W", "Close Active Tab"]];
-        let max_keybinds_text_length = 30;
-        let keybinds_text: Vec<Line<'_>> = keybinds_text
+
+        let keybinds = [
+            ("Ctrl-P", "Show Command Palette"),
+            ("Ctrl-B", "Toggle File Explorer"),
+            ("Ctrl-N", "New Tab"),
+            ("Ctrl-W", "Close Tab"),
+        ];
+
+        let keybinds_lines: Vec<Line> = keybinds
             .iter()
-            .map(|bindmap| {
+            .map(|(key, desc)| {
                 Line::from(vec![
-                    Span::raw(
-                        " ".repeat(max_keybinds_text_length - bindmap[0].len()),
-                    ),
                     Span::styled(
-                        bindmap[0],
+                        format!("{:<12}", key), // Left-align key in a fixed width
                         Style::default()
                             .add_modifier(Modifier::BOLD)
                             .fg(theme.highlight_fg),
                     ),
-                    Span::raw(" "),
-                    Span::raw(bindmap[1]),Span::raw(
-                        " ".repeat(max_keybinds_text_length - bindmap[1].len()),
-                    ),
+                    Span::raw(*desc),
                 ])
-                .centered()
+                .alignment(Alignment::Center)
             })
             .collect();
+        let keybinds_text = [vec![Line::from("")], keybinds_lines].concat();
 
         let logo_paragraph = Paragraph::new(logo_text).style(
             Style::default()

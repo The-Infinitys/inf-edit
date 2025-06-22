@@ -82,6 +82,9 @@ pub fn handle_global_keys(key: KeyEvent, app: &mut App) -> Result<Option<AppEven
                 }
                 "toggle_command_palette" => {
                     app.show_command_palette = !app.show_command_palette;
+                    if app.show_command_palette {
+                        app.command_palette.enter_file_mode();
+                    }
                 }
                 "new_tab" => match app.active_target {
                     ActiveTarget::Editor => {

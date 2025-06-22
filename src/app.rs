@@ -33,6 +33,7 @@ pub struct App {
     pub show_secondary_sidebar: bool,
     pub show_panel: bool,
     pub show_command_palette: bool,
+    pub quit_popup: Option<crate::Popup>,
     pub should_quit: bool,
     pub main_tabs: Vec<Tab<MainWidgetContent>>,
     pub active_main_tab: usize,
@@ -76,6 +77,7 @@ impl App {
             show_secondary_sidebar: false,
             show_panel: false,
             show_command_palette: false,
+            quit_popup: None,
             should_quit: false,
             active_main_tab: 0,
             main_tabs,
@@ -193,6 +195,13 @@ impl App {
         self.active_main_tab = 0;
     }
 
+    pub fn show_quit_popup(&mut self) {
+        self.quit_popup = Some(crate::Popup::new(
+            "Quit".to_string(),
+            "Are you sure you want to quit?".to_string(),
+        ));
+    }
+
     pub fn toggle_primary_sidebar(&mut self) {
         if !self.show_primary_sidebar {
             self.show_primary_sidebar = true;
@@ -237,8 +246,14 @@ impl App {
     pub fn poll_file_watcher(&mut self) {
         // Assuming FileView is the first tab, but this could be more robust
         if let Some(tab) = self.primary_sidebar_components.get_mut(0) {
+            // NOTE: The `if` condition was removed because `poll_file_changes` returns `()` not `bool`.
+            // Ideally, `poll_file_changes` should be modified to return `true` if changes were detected.
             tab.content.poll_file_changes();
+            self.set_command_palette_file_view_changed();
         }
+    }
+    fn set_command_palette_file_view_changed(&mut self) {
+        self.command_palette.set_file_view_changed();
     }
 
     /// Runs on every iteration of the main loop.

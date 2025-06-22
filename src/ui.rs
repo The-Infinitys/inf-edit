@@ -90,6 +90,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         Panel::new().render(f, main_area_chunks[1], app);
     }
 
+    if let Some(popup) = &app.quit_popup {
+        popup.render(f, f.area(), &app.theme);
+    }
+
     // Render Command Palette if active (must be before notifications)
     if app.show_command_palette {
         app.command_palette.render(f, f.area(), &app.theme);
