@@ -24,8 +24,8 @@ impl HelpWidget {
             ListItem::new("Ctrl+P: Toggle Command Palette"),
             ListItem::new("Alt+H / Alt+L: Prev/Next Editor/Terminal Tab"),
             ListItem::new("Ctrl+W: Close Active Tab"),
-            ListItem::new("Ctrl+Shift+Up/Down: Prev/Next Terminal Tab"),
-            ListItem::new("Ctrl+Tab / Ctrl+Shift+Tab: Prev/Next Sidebar Tab"),
+            ListItem::new("Ctrl+Shift+Up/Down: Prev/Next Terminal Tab"), // Note: Hardcoded
+            ListItem::new("Alt+J / Alt+K: Next/Prev Sidebar Tab"),
             ListItem::new("Ctrl+Alt-B: Toggle Help"), // Updated keybinding string
         ];
 

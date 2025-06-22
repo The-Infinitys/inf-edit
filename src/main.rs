@@ -6,16 +6,13 @@ use crossterm::{
 };
 // Updated import path
 use inf_edit::event_handler;
-use inf_edit::settings::Config;
 use inf_edit::ui;
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
-use inf_edit::components::bottom_bar::BottomBar;
-use inf_edit::ActiveTarget;
 use inf_edit::app::App;
+use inf_edit::ActiveTarget;
 
 fn main() -> Result<()> {
-    let config = Config::load()?;
     // Changed to anyhow::Result
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -23,10 +20,9 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(config);
-    let bottom_bar = BottomBar::new();
+    let mut app = App::new()?;
     loop {
-        ui::draw(&mut terminal, &mut app, &bottom_bar)?;
+        terminal.draw(|f| ui::draw(f, &mut app))?;
 
         // イベント処理
         match event_handler::handle_events(&mut app)? {

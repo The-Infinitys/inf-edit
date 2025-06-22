@@ -1,68 +1,18 @@
 pub mod component;
 pub mod help_widget;
-use self::component::SecondarySidebarComponent;
-use crate::Tab;
-use crate::theme::Theme;
-use ratatui::{
-    Frame,
-    layout::Rect,
-    prelude::*,
-    widgets::{Block, Borders, Tabs},
-};
 
-pub struct SecondarySideBar<'a> {
-    pub components: &'a mut Vec<Tab<SecondarySidebarComponent>>,
-    pub active_tab_index: usize,
-    is_active: bool,
-}
+use crate::app::App;
+use ratatui::prelude::*;
 
-impl<'a> SecondarySideBar<'a> {
-    pub fn new(
-        components: &'a mut Vec<Tab<SecondarySidebarComponent>>,
-        active_tab_index: usize,
-        is_active: bool,
-    ) -> Self {
-        Self {
-            components,
-            active_tab_index,
-            is_active,
-        }
+pub struct SecondarySidebar;
+
+impl SecondarySidebar {
+    pub fn new() -> Self {
+        Self
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect, theme: &Theme) {
-        let border_style = if self.is_active {
-            Style::default().fg(theme.highlight_fg)
-        } else {
-            Style::default().fg(theme.text_fg)
-        };
-
-        let outer_block = Block::default()
-            .title("Secondary Sidebar")
-            .borders(Borders::ALL)
-            .bg(theme.primary_bg)
-            .border_style(border_style);
-        let inner_area = outer_block.inner(area);
-        f.render_widget(outer_block, area);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(2), Constraint::Min(0)]) // Tabs, Content
-            .split(inner_area);
-
-        let tab_titles: Vec<Line> = self
-            .components
-            .iter()
-            .map(|tab| Line::from(tab.title.as_str()))
-            .collect();
-
-        let tabs = Tabs::new(tab_titles)
-            .block(Block::default().borders(Borders::BOTTOM))
-            .select(self.active_tab_index)
-            .highlight_style(Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD));
-        f.render_widget(tabs, chunks[0]);
-
-        if let Some(active_component) = self.components.get_mut(self.active_tab_index) {
-            active_component.content.render(f, chunks[1], theme);
-        }
+    pub fn render(&self, f: &mut Frame, area: Rect, app: &mut App) {
+        app.secondary_sidebar_component
+            .render(f, area, &app.theme);
     }
 }

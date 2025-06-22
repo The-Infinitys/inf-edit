@@ -43,7 +43,7 @@ impl GitWidget {
         widget
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -74,7 +74,7 @@ impl GitWidget {
                     .bg(theme.primary_bg),
             )
             .highlight_style(Style::default().bg(theme.highlight_bg).fg(theme.text_fg));
-        f.render_stateful_widget(unstaged_list, changes_chunks[0], &mut self.unstaged_state.clone());
+        f.render_stateful_widget(unstaged_list, changes_chunks[0], &mut self.unstaged_state);
 
         // Staged Changes
         let staged_border = self.get_border_style(is_active, &ActiveGitInput::Staged, theme);
@@ -92,7 +92,7 @@ impl GitWidget {
                     .bg(theme.primary_bg),
             )
             .highlight_style(Style::default().bg(theme.highlight_bg).fg(theme.text_fg));
-        f.render_stateful_widget(staged_list, changes_chunks[1], &mut self.staged_state.clone());
+        f.render_stateful_widget(staged_list, changes_chunks[1], &mut self.staged_state);
 
         let commit_input = Paragraph::new(self.commit_message.as_str()).block(
             Block::default()
@@ -315,7 +315,7 @@ impl GitWidget {
     fn perform_pull(&mut self) {
         if let Ok(repo) = Repository::open(".") {
             if let Ok(mut remote) = repo.find_remote("origin") {
-                let mut callbacks = git2::RemoteCallbacks::new();
+                let callbacks = git2::RemoteCallbacks::new();
                 // TODO: Add credentials callback for private repos
                 let mut fo = git2::FetchOptions::new();
                 fo.remote_callbacks(callbacks);

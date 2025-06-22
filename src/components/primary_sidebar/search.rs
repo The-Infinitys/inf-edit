@@ -43,7 +43,7 @@ impl SearchWidget {
         }
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -105,7 +105,7 @@ impl SearchWidget {
         f.render_widget(search_input_p, chunks[0]);
         f.render_widget(replace_input_p, chunks[1]);
         f.render_widget(replace_button, chunks[2]);
-        f.render_stateful_widget(results_list, chunks[3], &mut self.results_state.clone());
+        f.render_stateful_widget(results_list, chunks[3], &mut self.results_state);
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {

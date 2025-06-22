@@ -77,35 +77,35 @@ impl CommandPalette {
             ">workbench.action.files.newUntitledFile".to_string(),
             "新しいファイルを作成".to_string(),
             Box::new(|_cp| {
-                send_notification("新しいファイルを作成", NotificationType::Info);
+                send_notification("新しいファイルを作成".to_string(), NotificationType::Info);
             }),
         );
         cp.add_command(
             ">workbench.action.files.openFile".to_string(),
             "ファイルを開く".to_string(),
             Box::new(|_cp| {
-                send_notification("ファイルを開く", NotificationType::Info);
+                send_notification("ファイルを開く".to_string(), NotificationType::Info);
             }),
         );
         cp.add_command(
             ">workbench.action.files.save".to_string(),
             "ファイルを保存".to_string(),
             Box::new(|_cp| {
-                send_notification("ファイルを保存", NotificationType::Info);
+                send_notification("ファイルを保存".to_string(), NotificationType::Info);
             }),
         );
         cp.add_command(
             ">workbench.action.closeActiveEditor".to_string(),
             "エディタを閉じる".to_string(),
             Box::new(|_cp| {
-                send_notification("エディタを閉じる", NotificationType::Info);
+                send_notification("エディタを閉じる".to_string(), NotificationType::Info);
             }),
         );
         cp.add_command(
             ">workbench.action.quickOpen".to_string(),
             "クイックオープン".to_string(),
             Box::new(|_cp| {
-                send_notification("クイックオープン", NotificationType::Info);
+                send_notification("クイックオープン".to_string(), NotificationType::Info);
             }),
         );
         cp.add_command(
@@ -333,7 +333,7 @@ impl CommandPalette {
                                 CommandPaletteEvent::OpenFile(file.clone())
                             } else {
                                 send_notification(
-                                    "Error: Couldn't find file",
+                                    "Error: Couldn't find file".to_string(),
                                     NotificationType::Error,
                                 );
                                 CommandPaletteEvent::None

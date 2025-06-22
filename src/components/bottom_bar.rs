@@ -1,57 +1,20 @@
-use ratatui::{layout::{Constraint, Direction, Layout, Rect}, prelude::*, widgets::{Block, Borders}};
-pub mod item;
-use self::item::{BottomBarItem, GitInfoItem, CurrentTimeItem, ResourceUsageItem}; // Import from its own sub-module
+use crate::{theme::Theme, ActiveTarget};
+use ratatui::{
+    prelude::*,
+    widgets::{Paragraph, Widget},
+};
 
-pub struct BottomBar {
-    items: Vec<Box<dyn BottomBarItem>>,
-}
-
-impl Default for BottomBar {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub struct BottomBar {}
 
 impl BottomBar {
     pub fn new() -> Self {
-        Self {
-            items: vec![
-                Box::new(GitInfoItem::new()),
-                Box::new(CurrentTimeItem::new()),
-                Box::new(ResourceUsageItem::new()),
-            ],
-        }
+        Self {}
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, _is_active: bool, theme: &crate::theme::Theme) {
-        let block = Block::default()
-            .borders(Borders::NONE)
-            .bg(theme.secondary_bg);
-        f.render_widget(&block, area);
-
-        let inner_area = block.inner(area);
-        if inner_area.width == 0 || inner_area.height == 0 {
-            return;
-        }
-
-        let num_items = self.items.len();
-        if num_items == 0 {
-            return;
-        }
-
-        let constraints: Vec<Constraint> = (0..num_items)
-            .map(|_| Constraint::Percentage(100 / num_items as u16))
-            .collect();
-        
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(constraints)
-            .split(inner_area);
-        
-        for (i, item) in self.items.iter().enumerate() {
-            if let Some(chunk_area) = chunks.get(i) {
-                item.render_item(f, *chunk_area, theme);
-            }
-        }
+    pub fn get_status_widget<'a>(&self, active_target: ActiveTarget, theme: &'a Theme) -> impl Widget + 'a {
+        let status_text = format!("Active: {:?}", active_target);
+        Paragraph::new(status_text)
+            .style(Style::default().bg(theme.secondary_bg).fg(theme.text_fg))
+            .alignment(Alignment::Left)
     }
 }

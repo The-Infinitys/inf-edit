@@ -24,9 +24,9 @@ struct TreeDisplayItem {
 pub struct FileView {
     current_root: PathBuf,
     display_items: Vec<TreeDisplayItem>,
-    selected_idx: usize,
+    list_state: ListState,
     expanded_state: HashSet<PathBuf>,
-    path_history: Vec<(PathBuf, usize, HashSet<PathBuf>)>, // For current_root navigation
+    path_history: Vec<(PathBuf, ListState, HashSet<PathBuf>)>, // For current_root navigation
 }
 
 impl FileView {
@@ -34,18 +34,20 @@ impl FileView {
         let mut fv = Self {
             current_root: initial_path,
             display_items: Vec::new(),
-            selected_idx: 0,
+            list_state: ListState::default(),
             expanded_state: HashSet::new(),
             path_history: Vec::new(),
         };
+        fv.list_state.select(Some(0));
         fv.refresh_items();
         fv
     }
 
     fn refresh_items(&mut self) {
         let old_selected_path = self
-            .display_items
-            .get(self.selected_idx)
+            .list_state
+            .selected()
+            .and_then(|idx| self.display_items.get(idx))
             .map(|item| item.path.clone());
 
         self.display_items.clear();
@@ -71,22 +73,22 @@ impl FileView {
                 .iter()
                 .position(|item| item.path == selected_path)
             {
-                self.selected_idx = new_idx;
+                self.list_state.select(Some(new_idx));
             } else {
-                self.selected_idx = self
-                    .display_items
-                    .len()
-                    .saturating_sub(1)
-                    .min(self.selected_idx);
+                let new_len = self.display_items.len();
+                if new_len > 0 {
+                    let old_idx = self.list_state.selected().unwrap_or(0);
+                    self.list_state.select(Some(old_idx.min(new_len - 1)));
+                } else {
+                    self.list_state.select(None);
+                }
             }
-        } else {
-            self.selected_idx = 0;
+        } else if !self.display_items.is_empty() {
+            self.list_state.select(Some(0));
         }
 
-        if self.selected_idx >= self.display_items.len() && !self.display_items.is_empty() {
-            self.selected_idx = self.display_items.len() - 1;
-        } else if self.display_items.is_empty() {
-            self.selected_idx = 0;
+        if self.list_state.selected().is_none() && !self.display_items.is_empty() {
+            self.list_state.select(Some(0));
         }
     }
 
@@ -136,7 +138,7 @@ impl FileView {
         }
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, active: bool, theme: &crate::theme::Theme) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, active: bool, theme: &crate::theme::Theme) {
         let items: Vec<ListItem> = self
             .display_items
             .iter()
@@ -178,63 +180,62 @@ impl FileView {
             )
             .highlight_symbol("> ");
 
-        f.render_stateful_widget(list, area, &mut self.selected_state());
-    }
-
-    pub fn selected_state(&self) -> ListState {
-        let mut state = ListState::default();
-        if !self.display_items.is_empty() {
-            state.select(Some(self.selected_idx));
-        }
-        state
+        f.render_stateful_widget(list, area, &mut self.list_state);
     }
 
     pub fn next(&mut self) {
         if !self.display_items.is_empty() {
-            self.selected_idx = (self.selected_idx + 1) % self.display_items.len();
+            let i = self.list_state.selected().map_or(0, |i| (i + 1) % self.display_items.len());
+            self.list_state.select(Some(i));
         }
     }
 
     pub fn previous(&mut self) {
         if !self.display_items.is_empty() {
-            if self.selected_idx == 0 {
-                self.selected_idx = self.display_items.len() - 1;
-            } else {
-                self.selected_idx -= 1;
-            }
+            let i = self.list_state.selected().map_or(0, |i| {
+                if i == 0 {
+                    self.display_items.len() - 1
+                } else {
+                    i - 1
+                }
+            });
+            self.list_state.select(Some(i));
         }
     }
 
     pub fn enter(&mut self) {
-        if let Some(item) = self.display_items.get(self.selected_idx).cloned() {
-            // Cloned to avoid borrow checker issues with self.refresh_items
-            if item.is_parent_link {
-                self.go_to_parent_directory();
-            } else if item.is_dir {
-                if self.expanded_state.contains(&item.path) {
-                    self.expanded_state.remove(&item.path);
-                } else {
-                    self.expanded_state.insert(item.path.clone());
+        if let Some(selected_index) = self.list_state.selected() {
+            if let Some(item) = self.display_items.get(selected_index).cloned() {
+                // Cloned to avoid borrow checker issues with self.refresh_items
+                if item.is_parent_link {
+                    self.go_to_parent_directory();
+                } else if item.is_dir {
+                    if self.expanded_state.contains(&item.path) {
+                        self.expanded_state.remove(&item.path);
+                    } else {
+                        self.expanded_state.insert(item.path.clone());
+                    }
+                    self.refresh_items();
                 }
-                self.refresh_items();
+                // If it's a file, selected_file() will be called by the event handler
             }
-            // If it's a file, selected_file() will be called by the event handler
         }
     }
 
     pub fn back(&mut self) {
-        if let Some(item) = self.display_items.get(self.selected_idx).cloned() {
+        if let Some(selected_index) = self.list_state.selected() {
+            if let Some(item) = self.display_items.get(selected_index).cloned() {
             if item.is_dir && item.is_expanded && !item.is_parent_link {
                 self.expanded_state.remove(&item.path);
                 self.refresh_items();
             } else if item.depth > 0 {
                 // Try to select parent in the list
-                let mut parent_idx = self.selected_idx;
+                let mut parent_idx = selected_index;
                 while parent_idx > 0 {
                     parent_idx -= 1;
                     if let Some(parent_item) = self.display_items.get(parent_idx) {
                         if parent_item.depth < item.depth {
-                            self.selected_idx = parent_idx;
+                            self.list_state.select(Some(parent_idx));
                             return;
                         }
                     }
@@ -243,6 +244,7 @@ impl FileView {
                 self.go_to_parent_directory();
             } else {
                 self.go_to_parent_directory();
+            }
             }
         } else {
             self.go_to_parent_directory();
@@ -253,29 +255,31 @@ impl FileView {
         if let Some(parent) = self.current_root.parent() {
             self.path_history.push((
                 self.current_root.clone(),
-                self.selected_idx,
+                self.list_state.clone(),
                 self.expanded_state.clone(),
             ));
             self.current_root = parent.to_path_buf();
-            self.selected_idx = 0; // Or try to find the old current_root name
+            self.list_state.select(Some(0)); // Or try to find the old current_root name
             // self.expanded_state.clear(); // Optionally clear or manage intelligently
             self.refresh_items();
         } else if let Some((prev_root, prev_selected, prev_expanded)) = self.path_history.pop() {
             // Fallback to history if current_root has no parent but history exists
             self.current_root = prev_root;
-            self.selected_idx = prev_selected;
+            self.list_state = prev_selected;
             self.expanded_state = prev_expanded;
             self.refresh_items();
         }
     }
 
     pub fn selected_file(&self) -> Option<PathBuf> {
-        self.display_items.get(self.selected_idx).and_then(|item| {
-            if !item.is_dir && !item.is_parent_link {
-                Some(item.path.clone())
-            } else {
-                None
-            }
+        self.list_state.selected().and_then(|i| {
+            self.display_items.get(i).and_then(|item| {
+                if !item.is_dir && !item.is_parent_link {
+                    Some(item.path.clone())
+                } else {
+                    None
+                }
+            })
         })
     }
 

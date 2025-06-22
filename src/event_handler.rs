@@ -30,13 +30,17 @@ fn key_event_to_string(key: event::KeyEvent) -> Option<String> {
     if key.modifiers.contains(KeyModifiers::ALT) {
         parts.push("Alt");
     }
-    if key.modifiers.contains(KeyModifiers::SHIFT) {
+    // Handle Shift explicitly, especially for BackTab which implies Shift.
+    if key.code == KeyCode::BackTab {
+        parts.push("Shift");
+    } else if key.modifiers.contains(KeyModifiers::SHIFT) {
         parts.push("Shift");
     }
 
     let key_str = match key.code {
         KeyCode::Char(c) => c.to_uppercase().to_string(),
         KeyCode::F(n) => format!("F{}", n),
+        KeyCode::Tab | KeyCode::BackTab => "Tab".to_string(),
         _ => return None, // Only handle a subset of keys for global bindings
     };
     parts.push(&key_str);
@@ -338,37 +342,28 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len()
                             }
                             _ => {}
+                        }
+                        "increase_size" => match app.active_target {
+                            ActiveTarget::PrimarySideBar => app.cycle_sidebar_width(true), // This is the primary sidebar
+                            ActiveTarget::Panel => app.cycle_panel_height(true), // This is the terminal panel
+                            _ => {
+                                send_notification("Cannot resize: Focus Primary Sidebar or Panel to resize.".to_string(), NotificationType::Info);
+                            }
                         },
-                        _ => {} // Unhandled action
+                        "decrease_size" => match app.active_target {
+                            ActiveTarget::PrimarySideBar => app.cycle_sidebar_width(false), // This is the primary sidebar
+                            ActiveTarget::Panel => app.cycle_panel_height(false), // This is the terminal panel
+                            _ => {
+                                send_notification("Cannot resize: Focus Primary Sidebar or Panel to resize.".to_string(), NotificationType::Info);
+                            }
+                        },
+                        // The next/prev_primary_sidebar_tab actions are removed.
+                        // Tab switching is handled by next_tab/prev_tab when the sidebar is focused.
+                        _ => {
+                            // Unhandled action
+                        }
                     }
                     return Ok(AppEvent::Continue);
-                }
-            }
-
-            // Switch Primary Sidebar Tabs (Ctrl+Tab for next, Ctrl+Shift+Tab for previous)
-            if key.modifiers == KeyModifiers::CONTROL {
-                match key.code {
-                    KeyCode::Tab => {
-                        if app.show_primary_sidebar && !app.primary_sidebar_components.is_empty() {
-                            app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1)
-                                % app.primary_sidebar_components.len();
-                            app.active_target = ActiveTarget::PrimarySideBar;
-                            return Ok(AppEvent::Continue);
-                        }
-                    }
-                    KeyCode::BackTab => {
-                        if app.show_primary_sidebar && !app.primary_sidebar_components.is_empty() {
-                            app.active_primary_sidebar_tab = if app.active_primary_sidebar_tab == 0
-                            {
-                                app.primary_sidebar_components.len() - 1
-                            } else {
-                                app.active_primary_sidebar_tab - 1
-                            };
-                            app.active_target = ActiveTarget::PrimarySideBar;
-                            return Ok(AppEvent::Continue);
-                        }
-                    }
-                    _ => {}
                 }
             }
 

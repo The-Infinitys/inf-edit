@@ -1,39 +1,27 @@
+pub mod command_palette;
+
+use crate::app::App;
 use ratatui::{
     prelude::*,
-    style::Style,
-    widgets::{Block, Borders, Paragraph},
+    style::{Modifier, Style},
+    widgets::{Block, Tabs, Widget},
 };
-pub mod command_palette; // Declare the sub-module
-use self::command_palette::CommandPalette; // Import from its own sub-module
 
 pub struct TopBar {}
-
-impl Default for TopBar {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl TopBar {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect, _is_active: bool, title: &str, _command_palette: &mut CommandPalette, show_command_palette: bool, theme: &crate::theme::Theme) {
-        let top_bar_block = Block::default()
-            .borders(Borders::NONE)
-            .bg(theme.secondary_bg);
-
-        if show_command_palette {
-            // The command palette is rendered as an overlay, so it needs the full frame area
-            // to calculate its centered position, not just the top_bar_area.
-            // We'll pass the theme to its render method.
-            // The actual rendering of the command palette as an overlay is handled in ui.rs
-            // This method only sets up the top bar's own content.
-            // The `Clear` widget should be used in `ui.rs` before rendering the palette.
-        } else {
-            let text = Paragraph::new(title).block(top_bar_block).style(Style::default().fg(theme.text_fg));
-            f.render_widget(text, area);
-        }
+    pub fn get_tabs_widget<'a>(&self, app: &'a App) -> impl Widget + 'a {
+        let titles: Vec<String> = app.main_tabs.iter().map(|t| t.title.clone()).collect();
+        Tabs::new(titles)
+            .block(Block::default().bg(app.theme.primary_bg))
+            .select(app.active_main_tab)
+            .style(Style::default().fg(app.theme.text_fg))
+            .highlight_style(
+                Style::default().fg(app.theme.highlight_fg).add_modifier(Modifier::BOLD),
+            )
     }
 }

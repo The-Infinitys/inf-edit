@@ -40,10 +40,10 @@ impl Theme {
             },
             "default-light" => Self {
                 primary_bg: parse_color("white").unwrap(),
-                secondary_bg: parse_color("#eeeeee").unwrap(),
+                secondary_bg: parse_color("#aaaaaa").unwrap(),
                 text_fg: parse_color("black").unwrap(),
-                highlight_fg: parse_color("blue").unwrap(),
-                highlight_bg: parse_color("yellow").unwrap(),
+                highlight_fg: parse_color("#6666ff").unwrap(),
+                highlight_bg: parse_color("#ffff00").unwrap(),
             },
             "atom-dark" => Self {
                 primary_bg: parse_color("#282c34").unwrap(),

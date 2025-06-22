@@ -1,75 +1,106 @@
+use crate::theme::Theme;
+use once_cell::sync::Lazy;
 use ratatui::{
     prelude::*,
-    style::{Color, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
-/// 通知の種類
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotificationType {
     Info,
     Warning,
     Error,
 }
 
-/// 通知データ
-#[derive(Clone, Debug)]
-pub struct Notification {
-    pub message: String,
-    pub kind: NotificationType,
-    pub visible: bool,
+#[derive(Debug, Clone)]
+struct Notification {
+    message: String,
+    ntype: NotificationType,
+    created_at: Instant,
 }
 
 impl Notification {
-    pub fn new(message: impl Into<String>, kind: NotificationType) -> Self {
+    fn new(message: String, ntype: NotificationType) -> Self {
         Self {
-            message: message.into(),
-            kind,
-            visible: true,
+            message,
+            ntype,
+            created_at: Instant::now(),
         }
-    }
-
-    pub fn hide(&mut self) {
-        self.visible = false;
-    }
-
-    pub fn show(&mut self, message: impl Into<String>, kind: NotificationType) {
-        self.message = message.into();
-        self.kind = kind;
-        self.visible = true;
-    }
-
-    pub fn render(&self, f: &mut Frame, area: Rect) {
-        if !self.visible {
-            return;
-        }
-        let color = match self.kind {
-            NotificationType::Info => Color::Blue,
-            NotificationType::Warning => Color::Yellow,
-            NotificationType::Error => Color::Red,
-        };
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title("Notification")
-            .border_style(Style::default().fg(color));
-        let paragraph = Paragraph::new(self.message.clone())
-            .block(block)
-            .style(Style::default().fg(color));
-        f.render_widget(paragraph, area);
     }
 }
 
-// グローバルな通知インスタンス
-use once_cell::sync::Lazy;
+#[derive(Debug, Default)]
+struct NotificationManager {
+    notifications: Vec<Notification>,
+}
 
-pub static GLOBAL_NOTIFICATION: Lazy<Arc<Mutex<Notification>>> = Lazy::new(|| {
-    Arc::new(Mutex::new(Notification::new("", NotificationType::Info)))
-});
+impl NotificationManager {
+    const MAX_NOTIFICATIONS: usize = 5;
+    const NOTIFICATION_LIFETIME: Duration = Duration::from_secs(5);
 
-/// どこからでも通知を送信できる関数
-pub fn send_notification(message: impl Into<String>, kind: NotificationType) {
-    if let Ok(mut notif) = GLOBAL_NOTIFICATION.lock() {
-        notif.show(message, kind);
+    fn add(&mut self, message: String, ntype: NotificationType) {
+        if self.notifications.len() >= Self::MAX_NOTIFICATIONS {
+            self.notifications.remove(0);
+        }
+        self.notifications.push(Notification::new(message, ntype));
+    }
+
+    fn purge_old(&mut self) {
+        let now = Instant::now();
+        self.notifications
+            .retain(|n| now.duration_since(n.created_at) < Self::NOTIFICATION_LIFETIME);
+    }
+
+    fn render(&mut self, f: &mut Frame, area: Rect, theme: &Theme) {
+        self.purge_old();
+        if self.notifications.is_empty() {
+            return;
+        }
+
+        for (i, notification) in self.notifications.iter().enumerate() {
+            let block_color = match notification.ntype {
+                NotificationType::Info => theme.highlight_fg,
+                NotificationType::Warning => Color::Yellow,
+                NotificationType::Error => Color::Red,
+            };
+
+            let paragraph = Paragraph::new(notification.message.as_str())
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(block_color))
+                        .title(format!("{:?}", notification.ntype)),
+                )
+                .style(Style::default().fg(theme.text_fg).bg(theme.secondary_bg))
+                .wrap(ratatui::widgets::Wrap { trim: true });
+
+            let popup_width = 40;
+            let popup_area = Rect {
+                x: area.right().saturating_sub(popup_width),
+                y: area.y + (i as u16 * 3),
+                width: popup_width.min(area.width),
+                height: 3,
+            };
+
+            f.render_widget(Clear, popup_area);
+            f.render_widget(paragraph, popup_area);
+        }
+    }
+}
+
+static NOTIFICATION_MANAGER: Lazy<Mutex<NotificationManager>> =
+    Lazy::new(|| Mutex::new(NotificationManager::default()));
+
+pub fn send_notification(message: String, ntype: NotificationType) {
+    if let Ok(mut manager) = NOTIFICATION_MANAGER.lock() {
+        manager.add(message, ntype);
+    }
+}
+
+pub fn render_notifications(f: &mut Frame, area: Rect, theme: &Theme) {
+    if let Ok(mut manager) = NOTIFICATION_MANAGER.lock() {
+        manager.render(f, area, theme);
     }
 }
