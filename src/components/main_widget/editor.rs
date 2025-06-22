@@ -144,8 +144,7 @@ impl Editor {
             );
             Ok(())
         } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Err(std::io::Error::other(
                 "Could not lock editor writer to save",
             ))
         }
