@@ -76,6 +76,8 @@ impl App {
             active_terminal_tab: 0,
             active_primary_sidebar_tab: 0,
             active_secondary_sidebar_tab: 0,
+            config,
+            theme,
         }
     }
 

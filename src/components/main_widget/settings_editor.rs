@@ -1,4 +1,4 @@
-use crate::{app::App, theme::Theme};
+use crate::{settings::Config, theme::Theme};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState},
@@ -21,14 +21,14 @@ impl SettingsEditor {
         Self::default()
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect, app: &App, theme: &Theme) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, config: &Config, theme: &Theme) {
         let mut items = Vec::new();
 
         items.push(ListItem::new(Line::from(Span::styled(
             "[Keybindings]",
             Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD),
         ))));
-        for (key, action) in &app.config.keybindings.global {
+        for (key, action) in &config.keybindings.global {
             items.push(ListItem::new(format!("{:<20} -> {}", key, action)));
         }
 
@@ -37,11 +37,11 @@ impl SettingsEditor {
             "[Theme]",
             Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD),
         ))));
-        items.push(ListItem::new(format!("primary_bg:     {}", app.config.theme.primary_bg)));
-        items.push(ListItem::new(format!("secondary_bg:   {}", app.config.theme.secondary_bg)));
-        items.push(ListItem::new(format!("text_fg:        {}", app.config.theme.text_fg)));
-        items.push(ListItem::new(format!("highlight_fg:   {}", app.config.theme.highlight_fg)));
-        items.push(ListItem::new(format!("highlight_bg:   {}", app.config.theme.highlight_bg)));
+        items.push(ListItem::new(format!("primary_bg:     {}", config.theme.primary_bg)));
+        items.push(ListItem::new(format!("secondary_bg:   {}", config.theme.secondary_bg)));
+        items.push(ListItem::new(format!("text_fg:        {}", config.theme.text_fg)));
+        items.push(ListItem::new(format!("highlight_fg:   {}", config.theme.highlight_fg)));
+        items.push(ListItem::new(format!("highlight_bg:   {}", config.theme.highlight_bg)));
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Settings"))

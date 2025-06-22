@@ -1,6 +1,7 @@
 use super::file_view::FileView;
 use super::git::GitWidget;
 use super::search::SearchWidget;
+use crate::theme::Theme;
 use crossterm::event::KeyEvent;
 use ratatui::{Frame, layout::Rect};
 /// Enum to hold all possible components for the primary sidebar.
@@ -13,10 +14,10 @@ pub enum PrimarySidebarComponent {
 impl PrimarySidebarComponent {
     /// A render method to dispatch drawing to the correct underlying component.
     /// The `is_active` flag is passed down from the parent container.
-    pub fn render(&mut self, f: &mut Frame, area: Rect, is_active: bool) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
         match self {
             PrimarySidebarComponent::FileView(fv) => fv.render(f, area, is_active),
-            PrimarySidebarComponent::Search(sw) => sw.render(f, area, is_active),
+            PrimarySidebarComponent::Search(sw) => sw.render(f, area, is_active, theme),
             PrimarySidebarComponent::Git(gw) => gw.render(f, area, is_active),
         }
     }

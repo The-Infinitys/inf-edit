@@ -2,7 +2,7 @@ use anyhow::Result;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::Clear,
+    widgets::{Clear, Paragraph}, // Keep Paragraph for TopBar rendering
     Terminal,
 };
 
@@ -118,7 +118,7 @@ pub fn draw(
                 app.active_secondary_sidebar_tab,
                 app.active_target == ActiveTarget::SecondarySideBar,
             );
-            secondary_sidebar.render(f, secondary_sidebar_area, &app.theme);
+            secondary_sidebar.render(f, secondary_sidebar_area);
         }
 
         // Assign Main Widget and Panel areas from the center vertical split
@@ -144,13 +144,13 @@ pub fn draw(
             let content_area = main_widget_chunks[1];
 
             let mut main_widget = MainWidget::new(
-                &mut app.main_tabs,
+                &mut app.main_tabs, // This will be fixed by changing MainWidget
                 app.active_main_tab,
                 app.active_target == ActiveTarget::Editor,
             );
 
-            main_widget.render_tabs(f, tabs_area, &app.theme);
-            main_widget.render_content(f, content_area, &app.theme);
+            main_widget.render_tabs(f, tabs_area);
+            main_widget.render_content(f, content_area, &app.config, &app.theme);
         }
 
         // Render the Panel
@@ -173,15 +173,14 @@ pub fn draw(
                 app.active_target == ActiveTarget::Panel,
             );
 
-            panel.render_tabs(f, tabs_area, &app.theme);
-            panel.render_content(f, content_area, &app.theme);
+            panel.render_tabs(f, tabs_area);
+            panel.render_content(f, content_area);
         }
 
         // Render the Top Bar
         let mut top_bar = TopBar::new();
         let active_editor_title = app
-            .editors
-            .get(app.active_main_tab)
+            .main_tabs.get(app.active_main_tab)
             .map(|tab| tab.title.as_str())
             .unwrap_or("No Editor Open");
         top_bar.render(
@@ -189,18 +188,20 @@ pub fn draw(
             top_bar_area,
             app.active_target == ActiveTarget::Editor,
             active_editor_title,
-            &app.theme,
+            &mut app.command_palette,
+            app.show_command_palette,
+            &app.theme, // Pass the theme here
         );
 
         // Render the Bottom Bar (formerly status bar)
         // Use the instance passed as a parameter
-        bottom_bar_instance.render(f, status_area, true, &app.theme);
+        bottom_bar_instance.render(f, status_area, true, &app.theme); // Pass the theme here
 
         // Render Help widget on top, if visible. It needs the full frame area to calculate its centered position.
 
         // Render Command Palette as an overlay at the top
         if app.show_command_palette {
-            let area = f.size();
+            let area = f.area(); // Get the full frame area for overlay
             let palette_width = (area.width as f32 * 0.6).min(100.0) as u16;
             let list_len = app.command_palette.get_results_count();
             let palette_height = (list_len as u16 + 3).min(area.height / 2);
@@ -212,7 +213,7 @@ pub fn draw(
                 height: palette_height,
             };
             f.render_widget(Clear, popup_area); // Clear the area behind the palette
-            app.command_palette.render(f, palette_area, &app.theme);
+            app.command_palette.render(f, popup_area, &app.theme); // Pass the theme to command palette
         }
     })?;
     Ok(())

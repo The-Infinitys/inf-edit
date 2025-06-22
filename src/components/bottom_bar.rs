@@ -1,5 +1,5 @@
 use ratatui::{layout::{Constraint, Direction, Layout, Rect}, Frame, style::{Style, Color}, widgets::{Block, Borders}};
-pub mod item; // Declare the sub-module
+pub mod item;
 use self::item::{BottomBarItem, GitInfoItem, CurrentTimeItem, ResourceUsageItem}; // Import from its own sub-module
 
 pub struct BottomBar {
@@ -23,7 +23,7 @@ impl BottomBar {
         }
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, _is_active: bool) {
+    pub fn render(&self, f: &mut Frame, area: Rect, _is_active: bool, theme: &crate::theme::Theme) {
         let block = Block::default()
             .borders(Borders::NONE)
             .border_style(Style::default().fg(Color::DarkGray));
@@ -50,7 +50,7 @@ impl BottomBar {
         
         for (i, item) in self.items.iter().enumerate() {
             if let Some(chunk_area) = chunks.get(i) {
-                item.render_item(f, *chunk_area);
+                item.render_item(f, *chunk_area, theme);
             }
         }
     }

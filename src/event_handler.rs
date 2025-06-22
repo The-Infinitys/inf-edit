@@ -6,6 +6,7 @@ use std::time::Duration;
 use crate::{
     app::App,
     components::{
+        main_widget::editor::Editor,
         panel::term::Term,
         primary_sidebar::component::PrimarySidebarComponent, // Keep this import
     },
@@ -138,7 +139,7 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 app.active_target = ActiveTarget::PrimarySideBar;
                             } else if app.active_target == ActiveTarget::PrimarySideBar {
                                 app.show_primary_sidebar = false;
-                                app.active_target = if !app.editors.is_empty() {
+                                app.active_target = if !app.main_tabs.is_empty() {
                                     ActiveTarget::Editor
                                 } else if app.show_panel {
                                     ActiveTarget::Panel
@@ -177,7 +178,7 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 app.active_target = ActiveTarget::Panel;
                             } else if app.active_target == ActiveTarget::Panel {
                                 app.show_panel = false;
-                                app.active_target = if !app.editors.is_empty() {
+                                app.active_target = if !app.main_tabs.is_empty() {
                                     ActiveTarget::Editor
                                 } else if app.show_primary_sidebar {
                                     ActiveTarget::PrimarySideBar
@@ -295,7 +296,7 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                                 app.active_primary_sidebar_tab = (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len()
                             }
                             _ => {}
-                        };
+                        },
                         _ => {} // Unhandled action
                     }
                     return Ok(AppEvent::Continue);

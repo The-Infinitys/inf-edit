@@ -4,8 +4,9 @@ pub use self::file_view::FileView;
 pub mod component;
 pub mod git; // Add this line to expose the git module
 pub mod search;
-use self::{component::PrimarySidebarComponent, search::SearchWidget};
+use self::component::PrimarySidebarComponent;
 use crate::Tab;
+use crate::theme::Theme;
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem},
@@ -52,7 +53,7 @@ impl<'a> PrimarySideBar<'a> {
             .collect();
 
         let tabs_list =
-            List::new(tab_titles).block(Block::default().title("Tabs").borders(Borders::RIGHT));
+            List::new(items).block(Block::default().title("Tabs").borders(Borders::RIGHT));
         f.render_widget(tabs_list, area);
     }
 
@@ -70,11 +71,7 @@ impl<'a> PrimarySideBar<'a> {
             let content_area = content_block.inner(area);
             f.render_widget(content_block, area);
 
-            match &mut active_component.content {
-                PrimarySidebarComponent::FileView(fv) => fv.render(f, content_area, self.is_active, theme),
-                PrimarySidebarComponent::Search(sw) => sw.render(f, content_area, self.is_active, theme),
-                PrimarySidebarComponent::Git(gw) => gw.render(f, content_area, self.is_active, theme),
-            }
+            active_component.content.render(f, content_area, self.is_active, theme);
         }
     }
 }

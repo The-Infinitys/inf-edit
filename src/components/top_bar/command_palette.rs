@@ -322,7 +322,7 @@ impl CommandPalette {
         }
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, theme: &Theme) {
+    pub fn render(&self, f: &mut Frame, area: Rect, theme: &Theme) { // Added theme parameter
         let block = Block::default().borders(Borders::ALL).title("Command Palette");
         let input_line = Line::from(self.input.as_str());
         let input_paragraph = Paragraph::new(input_line).block(block.clone());
