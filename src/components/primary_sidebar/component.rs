@@ -18,7 +18,7 @@ impl PrimarySidebarComponent {
         match self {
             PrimarySidebarComponent::FileView(fv) => fv.render(f, area, is_active, theme),
             PrimarySidebarComponent::Search(sw) => sw.render(f, area, is_active, theme),
-            PrimarySidebarComponent::Git(gw) => gw.render(f, area, is_active),
+            PrimarySidebarComponent::Git(gw) => gw.render(f, area, is_active, theme),
         }
     }
 
@@ -26,7 +26,7 @@ impl PrimarySidebarComponent {
         match self {
             PrimarySidebarComponent::FileView(fv) => fv.handle_key(key),
             PrimarySidebarComponent::Search(sw) => sw.handle_key(key),
-            PrimarySidebarComponent::Git(_) => false, // Git not interactive yet
+            PrimarySidebarComponent::Git(gw) => gw.handle_key(key),
         }
     }
 }
