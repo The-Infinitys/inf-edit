@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use crate::{
     components::{
         main_widget::editor::Editor,
-        main_widget::welcome_widget::WelcomeWidget,
         main_widget::settings_editor::SettingsEditor,
+        main_widget::welcome_widget::WelcomeWidget,
         panel::term::Term,
         primary_sidebar::{
             component::PrimarySidebarComponent, file_view::FileView, git::GitWidget,
@@ -49,7 +49,7 @@ impl App {
         let config = Config::load()?;
         let theme = Theme::from_config(&config.theme);
         let initial_path = env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
- 
+
         let main_tabs = vec![Tab {
             title: "Welcome".to_string(),
             content: MainWidgetContent::Welcome(WelcomeWidget::new()),

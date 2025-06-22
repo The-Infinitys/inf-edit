@@ -39,17 +39,24 @@ impl WelcomeWidget {
             ["Ctrl-N", "Open Active Tab"],
             ["Ctrl-W", "Close Active Tab"],
         ];
+        let max_keybinds_text_length = 30;
         let keybinds_text: Vec<Line<'_>> = keybinds_text
             .iter()
             .map(|bindmap| {
                 Line::from(vec![
+                    Span::raw(
+                        " ".repeat(max_keybinds_text_length - bindmap[0].len()),
+                    ),
                     Span::styled(
                         bindmap[0],
                         Style::default()
                             .add_modifier(Modifier::BOLD)
                             .fg(theme.highlight_fg),
                     ),
-                    Span::raw(bindmap[1]),
+                    Span::raw(" "),
+                    Span::raw(bindmap[1]),Span::raw(
+                        " ".repeat(max_keybinds_text_length - bindmap[1].len()),
+                    ),
                 ])
                 .centered()
             })
