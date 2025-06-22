@@ -1,10 +1,9 @@
 use crate::{settings::Config, theme::Theme};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
-    crossterm::event::{KeyCode, KeyEvent},
     widgets::{Block, Borders, List, ListItem, ListState},
 };
-
 pub struct SettingsEditor {
     pub state: ListState,
 }
@@ -27,7 +26,9 @@ impl SettingsEditor {
 
         items.push(ListItem::new(Line::from(Span::styled(
             "[Keybindings]",
-            Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD),
         ))));
         for (key, action) in &config.keybindings.global {
             items.push(ListItem::new(format!("{:<20} -> {}", key, action)));
@@ -36,13 +37,30 @@ impl SettingsEditor {
         items.push(ListItem::new("")); // Spacer
         items.push(ListItem::new(Line::from(Span::styled(
             "[Theme]",
-            Style::default().fg(theme.highlight_fg).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD),
         ))));
-        items.push(ListItem::new(format!("primary_bg:     {}", config.theme.primary_bg)));
-        items.push(ListItem::new(format!("secondary_bg:   {}", config.theme.secondary_bg)));
-        items.push(ListItem::new(format!("text_fg:        {}", config.theme.text_fg)));
-        items.push(ListItem::new(format!("highlight_fg:   {}", config.theme.highlight_fg)));
-        items.push(ListItem::new(format!("highlight_bg:   {}", config.theme.highlight_bg)));
+        items.push(ListItem::new(format!(
+            "primary_bg:     {}",
+            config.theme.primary_bg
+        )));
+        items.push(ListItem::new(format!(
+            "secondary_bg:   {}",
+            config.theme.secondary_bg
+        )));
+        items.push(ListItem::new(format!(
+            "text_fg:        {}",
+            config.theme.text_fg
+        )));
+        items.push(ListItem::new(format!(
+            "highlight_fg:   {}",
+            config.theme.highlight_fg
+        )));
+        items.push(ListItem::new(format!(
+            "highlight_bg:   {}",
+            config.theme.highlight_bg
+        )));
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Settings"))
@@ -85,7 +103,7 @@ impl SettingsEditor {
     fn next(&mut self, total_items: usize) {
         let i = match self.state.selected() {
             Some(i) => (i + 1) % total_items, // Cycle through items
-            None => 0, // Select first item if nothing is selected
+            None => 0,                        // Select first item if nothing is selected
         };
         self.state.select(Some(i));
     }
