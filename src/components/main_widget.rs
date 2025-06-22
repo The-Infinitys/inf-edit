@@ -1,7 +1,7 @@
 use ratatui::{
     prelude::*,
-    style::Style,
-    widgets::{Block, Borders},
+    style::{Modifier, Style},
+    widgets::{Block, Borders, Tabs},
 };
 
 pub mod editor;
@@ -17,10 +17,26 @@ impl MainWidget {
 
     /// Renders the content of the active editor.
     pub fn render(&self, f: &mut Frame, area: Rect, app: &mut App) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
+            .split(area);
+
+        let tab_titles: Vec<String> = app.main_tabs.iter().map(|t| t.title.clone()).collect();
+        let tabs = Tabs::new(tab_titles)
+            .block(Block::default().bg(app.theme.primary_bg))
+            .select(app.active_main_tab)
+            .style(Style::default().fg(app.theme.text_fg))
+            .highlight_style(
+                Style::default().fg(app.theme.highlight_fg).add_modifier(Modifier::BOLD),
+            );
+        f.render_widget(tabs, chunks[0]);
+
+        let content_area = chunks[1];
         let active_tab_idx = app.active_main_tab;
         if active_tab_idx >= app.main_tabs.len() {
             // Render a placeholder if no tabs are available
-            f.render_widget(Block::default().borders(Borders::ALL).title("Editor"), area);
+            f.render_widget(Block::default().borders(Borders::ALL).title("Editor"), content_area);
             return;
         }
 
@@ -41,7 +57,7 @@ impl MainWidget {
                 MainWidgetContent::Editor(editor::Editor::new()), // Dummy value
             );
             if let MainWidgetContent::SettingsEditor(se) = &mut content {
-                se.render(f, area, app);
+                se.render(f, content_area, app);
             }
             // Put it back.
             app.main_tabs[active_tab_idx].content = content;
@@ -52,7 +68,7 @@ impl MainWidget {
                         .borders(Borders::ALL)
                         .border_style(border_style)
                         .bg(app.theme.primary_bg);
-                    editor.render_with_block(f, area, content_block);
+                    editor.render_with_block(f, content_area, content_block);
                 }
             }
         }

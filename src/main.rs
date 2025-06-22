@@ -29,19 +29,6 @@ fn main() -> Result<()> {
             event_handler::AppEvent::Quit => break,
             event_handler::AppEvent::Continue => {}
         }
-
-        // ターミナルプロセスの終了監視 (Ensure active_terminal_tab is valid before indexing)
-        if app.active_target == ActiveTarget::Panel && !app.terminals.is_empty() {
-            // Check if the panel is active
-            if app.active_terminal_tab < app.terminals.len()
-                && app.terminals[app.active_terminal_tab].content.is_dead()
-            {
-                // If the active terminal died, switch focus to editor.
-                // Optionally, could remove the dead terminal tab here.
-                app.active_target = ActiveTarget::Editor;
-                // app.show_panel = false; // Optionally hide the panel area
-            }
-        }
     }
 
     disable_raw_mode()?;

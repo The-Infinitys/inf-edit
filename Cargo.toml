@@ -1,7 +1,7 @@
 [package]
 name = "inf-edit" # アプリケーション名
-version = "1.2.0"
-edition = "2024"
+version = "1.2.1"
+edition = "2021"
 description = "A command-line tool for editing files." # アプリケーションの簡単な説明
 license = "MIT" # またはお使いのライセンス（例: "GPL-3.0-or-later"）
 authors = ["Your Name <your.email@example.com>"] # あなたの名前とメールアドレスに置き換えてください

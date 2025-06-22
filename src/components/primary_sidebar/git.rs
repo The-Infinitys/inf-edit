@@ -249,7 +249,7 @@ impl GitWidget {
                     else if status.is_wt_renamed() { self.unstaged_files.push(format!("R {}", path)); }
                     else if status.is_wt_typechange() { self.unstaged_files.push(format!("T {}", path)); }
                 }
-            }
+            };
     }
 
     fn stage_file(&mut self, path: &str) {

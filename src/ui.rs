@@ -20,11 +20,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // Top and Bottom Bars
     let top_bar = TopBar::new();
-    f.render_widget(top_bar.get_tabs_widget(&app), main_chunks[0]);
+    f.render_widget(top_bar.get_title_widget(app), main_chunks[0]);
 
     let bottom_bar = BottomBar::new();
     f.render_widget(
-        bottom_bar.get_status_widget(app.active_target, &app.theme),
+        bottom_bar.get_status_widget(app),
         main_chunks[2],
     );
 
@@ -85,6 +85,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     if app.show_panel {
         Panel::new().render(f, main_area_chunks[1], app);
+    }
+
+    // Render Command Palette if active (must be before notifications)
+    if app.show_command_palette {
+        app.command_palette.render(f, f.area(), app);
     }
 
     // 他のすべてのUIの上に通知を描画
