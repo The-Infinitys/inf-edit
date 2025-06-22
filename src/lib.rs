@@ -2,6 +2,7 @@ pub mod app;
 pub mod components;
 pub mod event_handler;
 pub mod ui;
+pub mod settings;
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ActiveTarget {
     Editor,

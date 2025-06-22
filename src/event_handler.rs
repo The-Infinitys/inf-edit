@@ -342,6 +342,14 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                             } else {
                                 app.active_terminal_tab - 1
                             };
+                        } else if app.active_target == ActiveTarget::PrimarySideBar
+                            && !app.primary_sidebar_components.is_empty()
+                        {
+                            app.active_primary_sidebar_tab = if app.active_primary_sidebar_tab == 0 {
+                                app.primary_sidebar_components.len() - 1
+                            } else {
+                                app.active_primary_sidebar_tab - 1
+                            };
                         }
                         return Ok(AppEvent::Continue);
                     }
@@ -354,6 +362,11 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                         {
                             app.active_terminal_tab =
                                 (app.active_terminal_tab + 1) % app.terminals.len();
+                        } else if app.active_target == ActiveTarget::PrimarySideBar
+                            && !app.primary_sidebar_components.is_empty()
+                        {
+                            app.active_primary_sidebar_tab =
+                                (app.active_primary_sidebar_tab + 1) % app.primary_sidebar_components.len();
                         }
                         return Ok(AppEvent::Continue);
                     }
