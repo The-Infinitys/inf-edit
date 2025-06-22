@@ -1,6 +1,8 @@
+use crate::theme::Theme;
 use ratatui::{
     Frame,
     layout::Rect,
+    style::Style,
     widgets::{Block, Borders, List, ListItem},
 };
 
@@ -11,7 +13,7 @@ impl HelpWidget {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn render(&self, f: &mut Frame, app_area: Rect) { // No longer checks `is_visible`
+    pub fn render(&self, f: &mut Frame, app_area: Rect, theme: &Theme) {
         let help_items = vec![
             ListItem::new("Ctrl+Q: Quit"),
             ListItem::new("Ctrl+B: Toggle File View"),
@@ -28,7 +30,9 @@ impl HelpWidget {
         ];
 
         let help_list =
-            List::new(help_items).block(Block::default().title("Help").borders(Borders::ALL));
+            List::new(help_items)
+                .style(Style::default().fg(theme.text_fg))
+                .block(Block::default().title("Help").borders(Borders::ALL));
 
         f.render_widget(help_list, app_area);
     }

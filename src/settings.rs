@@ -25,6 +25,7 @@ pub struct Keybindings {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
 pub struct Theme {
+    pub preset: String,
     pub primary_bg: String,
     pub secondary_bg: String,
     pub text_fg: String,
@@ -63,6 +64,7 @@ impl Default for Keybindings {
 impl Default for Theme {
     fn default() -> Self {
         Self {
+            preset: "Custom".to_string(),
             primary_bg: "Black".to_string(),
             secondary_bg: "#222222".to_string(),
             text_fg: "White".to_string(),

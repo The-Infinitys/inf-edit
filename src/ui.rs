@@ -118,7 +118,7 @@ pub fn draw(
                 app.active_secondary_sidebar_tab,
                 app.active_target == ActiveTarget::SecondarySideBar,
             );
-            secondary_sidebar.render(f, secondary_sidebar_area);
+            secondary_sidebar.render(f, secondary_sidebar_area, &app.theme);
         }
 
         // Assign Main Widget and Panel areas from the center vertical split
@@ -172,8 +172,8 @@ pub fn draw(
                 app.active_target == ActiveTarget::Panel,
             );
 
-            panel.render_tabs(f, tabs_area);
-            panel.render_content(f, content_area);
+            panel.render_tabs(f, tabs_area, &app.theme);
+            panel.render_content(f, content_area, &app.theme);
         }
 
         // Render the Top Bar

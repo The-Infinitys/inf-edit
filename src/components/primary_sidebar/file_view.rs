@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
+    prelude::*,
     Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -135,7 +136,7 @@ impl FileView {
         }
     }
 
-    pub fn render(&self, f: &mut Frame, area: Rect, active: bool) {
+    pub fn render(&self, f: &mut Frame, area: Rect, active: bool, theme: &crate::theme::Theme) {
         let items: Vec<ListItem> = self
             .display_items
             .iter()
@@ -154,27 +155,25 @@ impl FileView {
                     ""
                 };
                 let display_name = format!("{}{}{}{}", indent, icon, item.name, name_suffix);
-                ListItem::new(Line::from(Span::raw(display_name)))
+                ListItem::new(Line::from(Span::raw(display_name))).style(Style::default().fg(theme.text_fg))
             })
             .collect();
 
         let block = Block::default()
             .title(format!(" File View: {} ", self.current_root.display()))
             .borders(Borders::ALL)
-            .border_style(if active {
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            });
+            .border_style(
+                if active {
+                    Style::default().fg(theme.highlight_fg)
+                } else {
+                    Style::default().fg(theme.text_fg)
+                }
+            );
 
         let list = List::new(items)
             .block(block)
             .highlight_style(
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().bg(theme.highlight_bg).fg(theme.text_fg).add_modifier(Modifier::BOLD),
             )
             .highlight_symbol("> ");
 

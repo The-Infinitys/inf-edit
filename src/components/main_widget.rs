@@ -8,7 +8,6 @@ pub mod editor;
 pub mod settings_editor;
 use crate::{app::App, components::main_widget::editor::Editor};
 use crate::MainWidgetContent;
-use crate::Tab;
 
 pub struct MainWidget {
     pub active_editor_tab_index: usize,

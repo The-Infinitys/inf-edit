@@ -1,12 +1,13 @@
 use ratatui::{
     prelude::*,
-    style::{Color, Style},
+    style::Style,
     widgets::{Block, Borders, List, ListItem},
 };
 
 pub mod term;
 use self::term::Term;
 use crate::Tab;
+use crate::theme::Theme;
 
 pub struct Panel<'a> {
     pub terminal_tabs: &'a mut Vec<Tab<Term>>,
@@ -28,7 +29,7 @@ impl<'a> Panel<'a> {
     }
 
     /// Renders the terminal tabs at the top of its area.
-    pub fn render_tabs(&self, f: &mut Frame, area: Rect) {
+    pub fn render_tabs(&self, f: &mut Frame, area: Rect, theme: &Theme) {
         let tab_titles: Vec<ListItem> = self
             .terminal_tabs
             .iter()
@@ -36,7 +37,7 @@ impl<'a> Panel<'a> {
             .map(|(i, tab)| {
                 let mut list_item = ListItem::new(tab.title.clone());
                 if i == self.active_terminal_tab_index {
-                    list_item = list_item.style(Style::default().fg(Color::Yellow).bold());
+                    list_item = list_item.style(Style::default().fg(theme.highlight_fg).bold());
                 }
                 list_item
             })
@@ -49,10 +50,10 @@ impl<'a> Panel<'a> {
     }
 
     /// Renders the content of the active terminal.
-    pub fn render_content(&mut self, f: &mut Frame, area: Rect) {
+    pub fn render_content(&mut self, f: &mut Frame, area: Rect, theme: &Theme) {
         if let Some(active_term_tab) = self.terminal_tabs.get_mut(self.active_terminal_tab_index) {
             let border_style = if self.is_active {
-                Style::default().fg(Color::Green)
+                Style::default().fg(theme.highlight_fg)
             } else {
                 Style::default()
             };

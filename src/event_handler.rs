@@ -7,9 +7,12 @@ use crate::{
     app::App,
     components::{
         main_widget::editor::Editor,
+        notification::{send_notification, NotificationType},
         panel::term::Term,
         primary_sidebar::component::PrimarySidebarComponent, // Keep this import
     },
+    settings::Config,
+    theme::Theme,
     ActiveTarget, MainWidgetContent,
 };
 
@@ -71,6 +74,17 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
                     }
                     crate::components::top_bar::command_palette::CommandPaletteEvent::OpenSettings => {
                         app.add_settings_tab();
+                        app.show_command_palette = false;
+                    }
+                    crate::components::top_bar::command_palette::CommandPaletteEvent::ResetSettings => {
+                        app.config = Config::default();
+                        app.theme = Theme::from_config(&app.config.theme);
+                        if let Err(e) = app.config.save() {
+                            let msg = format!("Failed to save reset config: {}", e);
+                            send_notification(msg, NotificationType::Error);
+                        } else {
+                            send_notification("Settings reset to default.".to_string(), NotificationType::Info);
+                        }
                         app.show_command_palette = false;
                     }
                     crate::components::top_bar::command_palette::CommandPaletteEvent::OpenFile(path) => {

@@ -9,6 +9,7 @@ use ratatui::{
 #[derive(Debug, Clone)]
 enum EditableField {
     Keybinding(String), // The key of the keybinding
+    ThemePreset,
     ThemePrimaryBg,
     ThemeSecondaryBg,
     ThemeTextFg,
@@ -70,6 +71,10 @@ impl SettingsEditor {
                 .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
         ))));
+        items.push(ListItem::new(format!(
+            "preset:         {}",
+            config.theme.preset
+        )));
         items.push(ListItem::new(format!(
             "primary_bg:     {}",
             config.theme.primary_bg
@@ -148,6 +153,7 @@ impl SettingsEditor {
                                 *v = new_value;
                             }
                         }
+                        EditableField::ThemePreset => app.config.theme.preset = new_value,
                         EditableField::ThemePrimaryBg => app.config.theme.primary_bg = new_value,
                         EditableField::ThemeSecondaryBg => {
                             app.config.theme.secondary_bg = new_value
@@ -189,12 +195,9 @@ impl SettingsEditor {
                                     .get(k)
                                     .cloned()
                                     .unwrap_or_default(),
-                                EditableField::ThemePrimaryBg => {
-                                    app.config.theme.primary_bg.clone()
-                                }
-                                EditableField::ThemeSecondaryBg => {
-                                    app.config.theme.secondary_bg.clone()
-                                }
+                                EditableField::ThemePreset => app.config.theme.preset.clone(),
+                                EditableField::ThemePrimaryBg => app.config.theme.primary_bg.clone(),
+                                EditableField::ThemeSecondaryBg => app.config.theme.secondary_bg.clone(),
                                 EditableField::ThemeTextFg => app.config.theme.text_fg.clone(),
                                 EditableField::ThemeHighlightFg => {
                                     app.config.theme.highlight_fg.clone()
@@ -219,7 +222,7 @@ impl SettingsEditor {
     fn index_to_field(&self, index: usize, config: &Config) -> Option<EditableField> {
         let keybinding_start = 1;
         let keybinding_end = keybinding_start + config.keybindings.global.len();
-        let theme_start = keybinding_end + 2;
+        let theme_header_index = keybinding_end + 1;
 
         if (keybinding_start..keybinding_end).contains(&index) {
             let mut keys: Vec<_> = config.keybindings.global.keys().cloned().collect();
@@ -229,11 +232,12 @@ impl SettingsEditor {
         }
 
         match index {
-            i if i == theme_start => Some(EditableField::ThemePrimaryBg),
-            i if i == theme_start + 1 => Some(EditableField::ThemeSecondaryBg),
-            i if i == theme_start + 2 => Some(EditableField::ThemeTextFg),
-            i if i == theme_start + 3 => Some(EditableField::ThemeHighlightFg),
-            i if i == theme_start + 4 => Some(EditableField::ThemeHighlightBg),
+            i if i == theme_header_index + 1 => Some(EditableField::ThemePreset),
+            i if i == theme_header_index + 2 => Some(EditableField::ThemePrimaryBg),
+            i if i == theme_header_index + 3 => Some(EditableField::ThemeSecondaryBg),
+            i if i == theme_header_index + 4 => Some(EditableField::ThemeTextFg),
+            i if i == theme_header_index + 5 => Some(EditableField::ThemeHighlightFg),
+            i if i == theme_header_index + 6 => Some(EditableField::ThemeHighlightBg),
             _ => None, // Headers and spacers are not editable
         }
     }
@@ -244,7 +248,7 @@ impl SettingsEditor {
         + config.keybindings.global.len()
         + 1  // Spacer
         + 1  // [Theme] header
-        + 5 // Theme properties
+        + 6 // Theme properties (preset + 5 colors)
     }
 
     /// Moves the selection to the previous item.

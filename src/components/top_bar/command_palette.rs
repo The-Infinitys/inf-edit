@@ -47,6 +47,7 @@ pub enum CommandPaletteEvent {
     ExecuteCommand(String),
     OpenFile(String),
     OpenSettings,
+    ResetSettings,
 }
 
 impl Default for CommandPalette {
@@ -109,6 +110,13 @@ impl CommandPalette {
         cp.add_command(
             ">workbench.action.openSettings".to_string(),
             "設定を開く".to_string(),
+            Box::new(|_cp| {
+                // This will be handled by the event enum
+            }),
+        );
+        cp.add_command(
+            ">workbench.action.resetSettings".to_string(),
+            "設定をデフォルトにリセット".to_string(),
             Box::new(|_cp| {
                 // This will be handled by the event enum
             }),
@@ -284,6 +292,9 @@ impl CommandPalette {
                         if let Some(cmd_name) = self.command_candidates.get(selected_index).cloned() {
                             if cmd_name == ">workbench.action.openSettings" {
                                 return CommandPaletteEvent::OpenSettings;
+                            }
+                            if cmd_name == ">workbench.action.resetSettings" {
+                                return CommandPaletteEvent::ResetSettings;
                             }
                             self.execute_selected_command();
                             CommandPaletteEvent::ExecuteCommand(cmd_name)

@@ -16,7 +16,7 @@ impl PrimarySidebarComponent {
     /// The `is_active` flag is passed down from the parent container.
     pub fn render(&mut self, f: &mut Frame, area: Rect, is_active: bool, theme: &Theme) {
         match self {
-            PrimarySidebarComponent::FileView(fv) => fv.render(f, area, is_active),
+            PrimarySidebarComponent::FileView(fv) => fv.render(f, area, is_active, theme),
             PrimarySidebarComponent::Search(sw) => sw.render(f, area, is_active, theme),
             PrimarySidebarComponent::Git(gw) => gw.render(f, area, is_active),
         }

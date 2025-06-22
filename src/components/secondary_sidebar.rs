@@ -2,6 +2,7 @@ pub mod component;
 pub mod help_widget;
 use self::component::SecondarySidebarComponent;
 use crate::Tab;
+use crate::theme::Theme;
 use ratatui::{
     Frame,
     layout::Rect,
@@ -28,9 +29,9 @@ impl<'a> SecondarySideBar<'a> {
         }
     }
 
-    pub fn render(&mut self, f: &mut Frame, area: Rect) {
+    pub fn render(&mut self, f: &mut Frame, area: Rect, theme: &Theme) {
         let border_style = if self.is_active {
-            Style::default().fg(Color::Green)
+            Style::default().fg(theme.highlight_fg)
         } else {
             Style::default()
         };
@@ -56,11 +57,11 @@ impl<'a> SecondarySideBar<'a> {
         let tabs = Tabs::new(tab_titles)
             .block(Block::default().borders(Borders::BOTTOM))
             .select(self.active_tab_index)
-            .highlight_style(Style::default().fg(Color::Green).bold());
+            .highlight_style(Style::default().fg(theme.highlight_fg).bold());
         f.render_widget(tabs, chunks[0]);
 
         if let Some(active_component) = self.components.get_mut(self.active_tab_index) {
-            active_component.content.render(f, chunks[1]);
+            active_component.content.render(f, chunks[1], theme);
         }
     }
 }
