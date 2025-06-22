@@ -8,6 +8,8 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
+use std::env::current_dir;
+use std::path::PathBuf;
 use std::{
     borrow::Cow,
     path::Path,
@@ -248,7 +250,12 @@ impl CommandPalette {
                     CommandItem::File { path, .. } => {
                         let path_clone = path.clone();
                         Arc::new(move |app: &mut App| {
-                            app.open_editor(Path::new(&path_clone));
+                            app.open_editor(
+                                current_dir()
+                                    .unwrap_or(PathBuf::from("./"))
+                                    .join(&path_clone).canonicalize().unwrap_or_default()
+                                    .as_path(),
+                            );
                         })
                     }
                 }
