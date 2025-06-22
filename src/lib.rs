@@ -1,4 +1,6 @@
-use components::main_widget::{editor::Editor, settings_editor::SettingsEditor};
+use crate::components::main_widget::{
+    editor::Editor, settings_editor::SettingsEditor, welcome_widget::WelcomeWidget,
+};
 
 pub mod app;
 pub mod components;
@@ -18,4 +20,5 @@ pub enum ActiveTarget {
 pub enum MainWidgetContent {
     Editor(Editor),
     SettingsEditor(SettingsEditor),
+    Welcome(WelcomeWidget),
 }

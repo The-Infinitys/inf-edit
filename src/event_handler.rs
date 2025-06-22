@@ -49,10 +49,14 @@ pub fn handle_events(app: &mut App) -> Result<AppEvent> {
     app.main_tabs.retain(|tab| match &tab.content {
         MainWidgetContent::Editor(editor) => !editor.is_dead(),
         MainWidgetContent::SettingsEditor(_) => true, // Settings editor can't die
+        MainWidgetContent::Welcome(_) => true,        // Welcome screen can't die
     });
     if app.main_tabs.len() < initial_editor_len {
-        // If tabs were closed, ensure active tab is valid
-        if app.active_main_tab >= app.main_tabs.len() {
+        if app.main_tabs.is_empty() {
+            // The last editor was closed, show the welcome screen.
+            app.show_welcome_screen();
+        } else if app.active_main_tab >= app.main_tabs.len() {
+            // If tabs were closed, ensure active tab is valid
             app.active_main_tab = app.main_tabs.len().saturating_sub(1);
         }
     }

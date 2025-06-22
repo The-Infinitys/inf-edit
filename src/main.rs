@@ -1,6 +1,6 @@
 use anyhow::Result;
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{self, DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -10,6 +10,7 @@ use inf_edit::event_handler;
 use inf_edit::ui;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
+use std::time::Duration;
 
 fn main() -> Result<()> {
     // Changed to anyhow::Result
@@ -23,11 +24,17 @@ fn main() -> Result<()> {
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        // イベント処理
-        match event_handler::handle_events(&mut app)? {
-            event_handler::AppEvent::Quit => break,
-            event_handler::AppEvent::Continue => {}
+        // Poll for events with a timeout to keep the UI responsive and run ticks.
+        if event::poll(Duration::from_millis(100))? {
+            // If an event is available, handle it.
+            match event_handler::handle_events(&mut app)? {
+                event_handler::AppEvent::Quit => break,
+                event_handler::AppEvent::Continue => {}
+            }
         }
+
+        // Run periodic tasks like checking for exited terminals.
+        app.tick();
     }
 
     disable_raw_mode()?;

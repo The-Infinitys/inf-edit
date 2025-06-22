@@ -47,15 +47,17 @@ pub fn send_key_to_terminal<T>(target: &T, key: event::KeyEvent)
 where
     T: PtyInput + ?Sized,
 {
-    let mut bytes: Vec<u8> = Vec::new();
+    let mut bytes: Vec<u8>;
+    let has_ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
 
-    let code_bytes = match key.code {
-        KeyCode::Backspace => vec![8],
-        KeyCode::Enter => vec![b'\r'],
-        KeyCode::Left => b"\x1b[D".to_vec(),
-        KeyCode::Right => b"\x1b[C".to_vec(),
-        KeyCode::Up => b"\x1b[A".to_vec(),
-        KeyCode::Down => b"\x1b[B".to_vec(),
+    bytes = match key.code {
+        KeyCode::Backspace => if has_ctrl { vec![127] } else { vec![8] },
+        KeyCode::Enter => vec![b'\r'], // Ctrl-Enter is often the same as Enter
+        // Arrow keys with Ctrl modifier send a different escape sequence
+        KeyCode::Left => if has_ctrl { b"\x1b[1;5D".to_vec() } else { b"\x1b[D".to_vec() },
+        KeyCode::Right => if has_ctrl { b"\x1b[1;5C".to_vec() } else { b"\x1b[C".to_vec() },
+        KeyCode::Up => if has_ctrl { b"\x1b[1;5A".to_vec() } else { b"\x1b[A".to_vec() },
+        KeyCode::Down => if has_ctrl { b"\x1b[1;5B".to_vec() } else { b"\x1b[B".to_vec() },
         KeyCode::Home => b"\x1b[H".to_vec(),
         KeyCode::End => b"\x1b[F".to_vec(),
         KeyCode::PageUp => b"\x1b[5~".to_vec(),
@@ -65,12 +67,29 @@ where
         KeyCode::Delete => b"\x1b[3~".to_vec(),
         KeyCode::Insert => b"\x1b[2~".to_vec(),
         KeyCode::F(n) => format!("\x1b[{}~", n + 11).into_bytes(),
-        KeyCode::Char(c) => c.to_string().into_bytes(),
+        KeyCode::Char(c) => {
+            if has_ctrl {
+                // Map Ctrl+alphabetic chars to ASCII control codes 1-26
+                match c {
+                    'a'..='z' => vec![c as u8 - b'a' + 1],
+                    'A'..='Z' => vec![c as u8 - b'A' + 1],
+                    '@' => vec![0], // Ctrl-@ (or Ctrl-Space) -> NUL
+                    '[' => vec![0x1b], // Ctrl-[ -> ESC
+                    '\\' => vec![0x1c], // Ctrl-\ -> FS
+                    ']' => vec![0x1d], // Ctrl-] -> GS
+                    '^' => vec![0x1e], // Ctrl-^ -> RS
+                    '_' => vec![0x1f], // Ctrl-_ -> US
+                    '?' => vec![127], // Ctrl-? -> DEL
+                    _ => vec![], // Unhandled Ctrl-Char
+                }
+            } else {
+                c.to_string().into_bytes()
+            }
+        }
         KeyCode::Esc => vec![0x1b],
-        _ => vec![],
+        KeyCode::CapsLock => vec![],
+        _ => vec![], // Ignore other keys like media keys
     };
-
-    bytes.extend(code_bytes);
 
     if key.modifiers.contains(KeyModifiers::ALT) && !bytes.is_empty() && key.code != KeyCode::Esc {
         bytes.insert(0, 0x1b);
