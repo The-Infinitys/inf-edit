@@ -1,3 +1,6 @@
 [submodule "inedit"]
 	path = inedit
 	url = https://github.com/The-Infinitys/inedit
+[submodule "ai-integration"]
+	path = ai-integration
+	url = https://github.com/The-Infinitys/ai-integration
